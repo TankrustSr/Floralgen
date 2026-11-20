@@ -1,0 +1,3986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FloraPlot Studio — Photorealistic Botanical &amp; LightBurn SVG Generator</title>
+  <style>
+    :root {
+      --bg-app: #121417;
+      --bg-panel: #191c21;
+      --bg-elevated: #22262d;
+      --bg-input: #101215;
+      --border: #2c323b;
+      --border-strong: #3d4552;
+      --text-main: #edf1f5;
+      --text-muted: #98a2b3;
+      --text-dim: #667085;
+      --accent: #38bdf8;
+      --accent-soft: rgba(56, 189, 248, 0.14);
+      --accent-text: #09131c;
+      --success: #34d399;
+      --radius: 6px;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      background: var(--bg-app);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      line-height: 1.4;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .app-shell {
+      display: grid;
+      grid-template-columns: 350px 1fr;
+      grid-template-rows: 48px 1fr 30px;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    .topbar {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      font-size: 14px;
+      letter-spacing: -0.01em;
+    }
+
+    .brand-mark {
+      width: 22px;
+      height: 22px;
+      border-radius: 5px;
+      background: var(--accent-soft);
+      border: 1px solid var(--accent);
+      display: grid;
+      place-items: center;
+      color: var(--accent);
+    }
+
+    .brand-sub {
+      color: var(--text-dim);
+      font-weight: 400;
+      font-size: 12px;
+      margin-left: 4px;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, transform 0.08s;
+      border: 1px solid var(--border-strong);
+      background: var(--bg-elevated);
+      color: var(--text-main);
+      padding: 6px 11px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    button:hover { background: #2c313a; border-color: #505a68; }
+    button:active { transform: translateY(1px); }
+
+    button.primary {
+      background: var(--accent);
+      color: var(--accent-text);
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+    button.primary:hover { background: #5ccbfa; border-color: #5ccbfa; }
+    button.sm { padding: 4px 8px; font-size: 11px; }
+
+    .sidebar {
+      grid-row: 2 / 3;
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 10px 12px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .sidebar::-webkit-scrollbar { width: 6px; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+
+    .section {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.015);
+      overflow: hidden;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .section.collapsed .section-body { display: none; }
+    .section.collapsed .section-header { border-bottom: none; }
+
+    .section-body {
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .control-row { display: flex; flex-direction: column; gap: 4px; }
+
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .control-val {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-main);
+    }
+
+    select, input[type="number"], input[type="text"] {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-strong);
+      color: var(--text-main);
+      border-radius: 5px;
+      padding: 5px 8px;
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+    }
+    select:focus, input[type="number"]:focus { border-color: var(--accent); }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+      cursor: pointer;
+      height: 4px;
+    }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+    .checkbox-row input[type="checkbox"] {
+      accent-color: var(--accent);
+      width: 14px;
+      height: 14px;
+      cursor: pointer;
+    }
+
+    .mode-pills {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .mode-pill {
+      padding: 7px 8px;
+      font-size: 11px;
+      text-align: center;
+      border-radius: 5px;
+      border: 1px solid var(--border-strong);
+      background: var(--bg-input);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .mode-pill.full-span { grid-column: 1 / -1; }
+
+    .mode-pill.active {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    .viewport-wrap {
+      grid-row: 2 / 3;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      background: #0c0e11;
+      overflow: hidden;
+    }
+
+    .layer-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 12px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      min-height: 36px;
+      flex-wrap: wrap;
+    }
+
+    .layer-chips {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .layer-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border-strong);
+      background: var(--bg-elevated);
+      font-size: 11px;
+      color: var(--text-main);
+      cursor: pointer;
+      user-select: none;
+    }
+    .layer-chip.hidden-layer { opacity: 0.4; }
+
+    .layer-swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+    }
+
+    .zoom-controls { display: flex; align-items: center; gap: 4px; }
+
+    .canvas-stage {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      cursor: grab;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+    .canvas-stage:active { cursor: grabbing; }
+
+    #renderContainer {
+      transform-origin: center center;
+      will-change: transform;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+      border-radius: 2px;
+      line-height: 0;
+    }
+
+    #renderContainer svg, #renderContainer canvas {
+      display: block;
+      pointer-events: none;
+    }
+
+    .statusbar {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      background: var(--bg-panel);
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .status-group { display: flex; align-items: center; gap: 16px; }
+    .badge-ok { color: var(--success); }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22V12M12 12C12 7 16 4 20 4c0 4-3 8-8 8zM12 15c0-4-4-7-8-7 0 4 3 7 8 7z"/>
+            <circle cx="12" cy="7" r="2.5"/>
+          </svg>
+        </div>
+        <span>FloraPlot Studio</span>
+        <span class="brand-sub">Photorealistic Botanical &amp; LightBurn SVG</span>
+      </div>
+      <div class="topbar-actions">
+        <button id="btnRandomize" title="New random seed">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
+          New Seed
+        </button>
+        <button id="btnExportLayers" class="hidden" title="Download each layer as a separate SVG">
+          Export Layers
+        </button>
+        <button id="btnExportSVG" class="primary">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Export LightBurn SVG
+        </button>
+      </div>
+    </header>
+
+    <aside class="sidebar">
+      <div class="section">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span>1. Species &amp; Arrangement</span>
+          <span>▾</span>
+        </div>
+        <div class="section-body">
+          <div class="control-row">
+            <label class="control-label">Primary Flower Species</label>
+            <select id="species">
+              <option value="rose">Rose (Rosa — Cupped Spiral)</option>
+              <option value="sunflower">Sunflower (Helianthus — Phyllotaxis)</option>
+              <option value="tulip">Tulip (Tulipa — Satin Goblet)</option>
+              <option value="lily">Stargazer Lily (Lilium — Recurved)</option>
+              <option value="orchid">Orchid (Phalaenopsis — Zygomorphic)</option>
+              <option value="peony">Peony (Paeonia — Lush Double)</option>
+              <option value="poppy">Poppy (Papaver — Silky Crinkled)</option>
+              <option value="cherry">Cherry Blossom (Prunus — 5-Notch)</option>
+              <option value="mixed">Mixed Botanical Bouquet</option>
+            </select>
+          </div>
+
+          <div class="control-row">
+            <label class="control-label">Arrangement Composition</label>
+            <select id="arrangement">
+              <option value="dome">Classic Radial Dome Bouquet</option>
+              <option value="ikebana">Ikebana (Shin-Soe-Hikae Triangle)</option>
+              <option value="cascade">Crescent / Cascade Arc</option>
+              <option value="spiral">Golden Spiral Cluster</option>
+              <option value="meadow">Wildflower Meadow Stagger</option>
+              <option value="specimen">Botanical Specimen Sheet</option>
+            </select>
+          </div>
+
+          <div class="grid-2">
+            <div class="control-row">
+              <label class="control-label">Filler Foliage</label>
+              <select id="fillerType">
+                <option value="babysbreath">Baby's Breath</option>
+                <option value="eucalyptus">Eucalyptus</option>
+                <option value="fern">Fern Fronds</option>
+                <option value="lavender">Lavender Spikes</option>
+                <option value="berries">Hypericum Berries</option>
+                <option value="mixed_filler">Mixed Fillers</option>
+                <option value="none">None</option>
+              </select>
+            </div>
+            <div class="control-row">
+              <label class="control-label">
+                <span>Filler Density</span>
+                <span class="control-val" id="valFillerDensity">60%</span>
+              </label>
+              <input type="range" id="fillerDensity" min="0" max="100" value="60" />
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="control-row">
+              <label class="control-label">Camera View</label>
+              <select id="cameraView">
+                <option value="natural">Natural 3/4 Angle</option>
+                <option value="front">Front Elevation</option>
+                <option value="top">Top-Down Overhead</option>
+              </select>
+            </div>
+            <div class="control-row">
+              <label class="control-label">Seed</label>
+              <input type="number" id="seed" value="4217" min="1" max="999999" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span>2. Botanical Growth &amp; Counts</span>
+          <span>▾</span>
+        </div>
+        <div class="section-body">
+          <div class="control-row">
+            <label class="control-label">
+              <span>Plant / Arrangement Scale</span>
+              <span class="control-val" id="valPlantSize">100%</span>
+            </label>
+            <input type="range" id="plantSize" min="50" max="140" value="100" />
+          </div>
+
+          <div class="grid-2">
+            <div class="control-row">
+              <label class="control-label">
+                <span>Flowers</span>
+                <span class="control-val" id="valNumFlowers">5</span>
+              </label>
+              <input type="range" id="numFlowers" min="1" max="12" value="5" />
+            </div>
+            <div class="control-row">
+              <label class="control-label">
+                <span>Buds</span>
+                <span class="control-val" id="valNumBuds">3</span>
+              </label>
+              <input type="range" id="numBuds" min="0" max="12" value="3" />
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div class="control-row">
+              <label class="control-label">
+                <span>Leaf Clusters</span>
+                <span class="control-val" id="valNumLeaves">8</span>
+              </label>
+              <input type="range" id="numLeaves" min="0" max="20" value="8" />
+            </div>
+            <div class="control-row">
+              <label class="control-label">
+                <span>Openness</span>
+                <span class="control-val" id="valOpenness">82%</span>
+              </label>
+              <input type="range" id="openness" min="25" max="100" value="82" />
+            </div>
+          </div>
+
+          <div class="control-row">
+            <label class="control-label">
+              <span>Phototropism / Light Angle</span>
+              <span class="control-val" id="valPhotoAngle">18°</span>
+            </label>
+            <input type="range" id="photoAngle" min="-75" max="75" value="18" />
+          </div>
+
+          <div class="grid-2">
+            <div class="control-row">
+              <label class="control-label">
+                <span>Phototropism</span>
+                <span class="control-val" id="valPhotoStrength">40%</span>
+              </label>
+              <input type="range" id="photoStrength" min="0" max="100" value="40" />
+            </div>
+            <div class="control-row">
+              <label class="control-label">
+                <span>Gravitropism</span>
+                <span class="control-val" id="valGravitropism">18%</span>
+              </label>
+              <input type="range" id="gravitropism" min="-50" max="80" value="18" />
+            </div>
+          </div>
+
+          <div class="control-row">
+            <label class="control-label">
+              <span>Phyllotaxis Divergence Angle</span>
+              <span class="control-val" id="valPhyllotaxis">137.5°</span>
+            </label>
+            <input type="range" id="phyllotaxis" min="90" max="180" step="0.5" value="137.5" />
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span>3. Render Aesthetic &amp; Mode</span>
+          <span>▾</span>
+        </div>
+        <div class="section-body">
+          <div class="mode-pills" id="modePills">
+            <div class="mode-pill full-span active" data-mode="photorealistic">Photorealistic 3D Botanical</div>
+            <div class="mode-pill" data-mode="halftone">Halftone Pen Plot</div>
+            <div class="mode-pill" data-mode="white_black">White on Black</div>
+            <div class="mode-pill" data-mode="xray">X-Ray Vector (Pen Plot)</div>
+            <div class="mode-pill" data-mode="xray_dither">X-Ray Radiograph (Dither)</div>
+          </div>
+
+          <div id="panelPhotoOpts" class="control-row" style="gap: 8px; margin-top: 4px;">
+            <div class="control-row">
+              <label class="control-label">Studio Backdrop</label>
+              <select id="photoBackdrop">
+                <option value="dark_studio">Dark Botanical Studio</option>
+                <option value="parchment">Warm Herbarium Parchment</option>
+                <option value="gallery_white">Crisp Gallery White</option>
+              </select>
+            </div>
+            <div class="control-row">
+              <label class="control-label">Bloom Color Palette</label>
+              <select id="colorPalette">
+                <option value="natural">Species Natural</option>
+                <option value="crimson">Deep Velvet Crimson</option>
+                <option value="blush">Soft Blush &amp; Ivory</option>
+                <option value="apricot">Warm Apricot &amp; Peach</option>
+                <option value="violet">Royal Plum &amp; Lavender</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="panelLineOpts" class="hidden" style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
+            <div class="control-row">
+              <label class="control-label">X-Ray Shading Style</label>
+              <select id="xrayStyle">
+                <option value="striations">Vascular Striations</option>
+                <option value="stipple">Graduated Stipple</option>
+                <option value="both">Striations + Stipple</option>
+              </select>
+            </div>
+            <div class="control-row">
+              <label class="control-label">
+                <span>Shading &amp; Stipple Density</span>
+                <span class="control-val" id="valXrayDensity">55%</span>
+              </label>
+              <input type="range" id="xrayDensity" min="10" max="100" value="55" />
+            </div>
+            <label class="checkbox-row">
+              <span>Show Vascular Veins &amp; Anatomy</span>
+              <input type="checkbox" id="showVeins" checked />
+            </label>
+            <label class="checkbox-row">
+              <span>Dark X-Ray Film (Negative)</span>
+              <input type="checkbox" id="xrayBlueprint" />
+            </label>
+          </div>
+
+          <div id="panelHalftoneOpts" class="hidden" style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
+            <div class="control-row">
+              <label class="control-label">
+                <span>Pen Color Layers</span>
+                <span class="control-val" id="valPenLayers">4</span>
+              </label>
+              <input type="range" id="penLayers" min="1" max="6" value="4" />
+            </div>
+            <div class="grid-2">
+              <div class="control-row">
+                <label class="control-label">Halftone Style</label>
+                <select id="halftoneStyle">
+                  <option value="uv_contour">Botanical UV Contour</option>
+                  <option value="crosshatch">Cross-Hatch</option>
+                  <option value="stipple">Mezzotint Stipple</option>
+                  <option value="parallel">Parallel Scan</option>
+                </select>
+              </div>
+              <div class="control-row">
+                <label class="control-label">
+                  <span>Shade Density</span>
+                  <span class="control-val" id="valHalftoneDensity">65%</span>
+                </label>
+                <input type="range" id="halftoneDensity" min="20" max="100" value="65" />
+              </div>
+            </div>
+          </div>
+
+          <div id="panelWoodOpts" class="hidden" style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
+            <div class="grid-2">
+              <div class="control-row">
+                <label class="control-label">
+                  <span>Wood Layers</span>
+                  <span class="control-val" id="valWoodLayers">4</span>
+                </label>
+                <input type="range" id="woodLayers" min="2" max="4" value="4" />
+              </div>
+              <div class="control-row">
+                <label class="control-label">
+                  <span>Layer Step (mm)</span>
+                  <span class="control-val" id="valWoodOffset">1.8</span>
+                </label>
+                <input type="range" id="woodOffset" min="0.8" max="4.0" step="0.2" value="1.8" />
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="control-row">
+                <label class="control-label">Base / Frame</label>
+                <select id="woodFrame">
+                  <option value="silhouette">Contiguous Silhouette</option>
+                  <option value="arch">Botanical Arch Plaque</option>
+                  <option value="ring">Circular Mandala Ring</option>
+                </select>
+              </div>
+              <div class="control-row">
+                <label class="control-label">
+                  <span>Bridge Width (mm)</span>
+                  <span class="control-val" id="valBridgeWidth">3.2</span>
+                </label>
+                <input type="range" id="bridgeWidth" min="1.5" max="6.0" step="0.1" value="3.2" />
+              </div>
+            </div>
+            <label class="checkbox-row">
+              <span>Preview 3D Stacked Wood Relief</span>
+              <input type="checkbox" id="woodPreview3D" checked />
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span>4. Canvas &amp; LightBurn Setup</span>
+          <span>▾</span>
+        </div>
+        <div class="section-body">
+          <div class="control-row">
+            <label class="control-label">Physical Bed / Paper Size</label>
+            <select id="canvasSize">
+              <option value="210x297">A4 Portrait (210 × 297 mm)</option>
+              <option value="297x210">A4 Landscape (297 × 210 mm)</option>
+              <option value="200x200">Square 200 × 200 mm</option>
+              <option value="300x300">Square 300 × 300 mm</option>
+              <option value="297x420">A3 Portrait (297 × 420 mm)</option>
+            </select>
+          </div>
+          <div class="control-row">
+            <label class="control-label">
+              <span>Vector Stroke Width (mm)</span>
+              <span class="control-val" id="valStrokeWidth">0.28</span>
+            </label>
+            <input type="range" id="strokeWidth" min="0.1" max="1.0" step="0.02" value="0.28" />
+          </div>
+          <label class="checkbox-row">
+            <span>Include Alignment Registration Marks</span>
+            <input type="checkbox" id="regMarks" checked />
+          </label>
+        </div>
+      </div>
+    </aside>
+
+    <main class="viewport-wrap">
+      <div class="layer-bar">
+        <div class="layer-chips" id="layerChips"></div>
+        <div class="zoom-controls">
+          <button class="sm" id="btnZoomOut" title="Zoom out">−</button>
+          <button class="sm" id="btnZoomFit" title="Fit to viewport">Fit</button>
+          <button class="sm" id="btnZoomIn" title="Zoom in">+</button>
+        </div>
+      </div>
+      <div class="canvas-stage" id="canvasStage">
+        <div id="renderContainer"></div>
+      </div>
+    </main>
+
+    <footer class="statusbar">
+      <div class="status-group">
+        <span id="statusSpecies">Rose · Dome</span>
+        <span id="statusDimensions">210 × 297 mm</span>
+        <span id="statusPaths">0 paths</span>
+      </div>
+      <div class="status-group">
+        <span id="statusIslandCheck" class="badge-ok">LightBurn Ready ✓</span>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. PRNG, VECTOR MATH & SMOOTH BEZIER CONVERSION
+    // =========================================================================
+    function createRNG(seed) {
+      let a = seed >>> 0;
+      return function () {
+        let t = (a += 0x6D2B79F5);
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    const DEG = Math.PI / 180;
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const smoothstep = (e0, e1, x) => {
+      const t = clamp((x - e0) / (e1 - e0), 0, 1);
+      return t * t * (3 - 2 * t);
+    };
+    const dist2 = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
+    const fmt = n => (Number.isFinite(n) ? n.toFixed(2) : "0");
+
+    function project3D(p, yaw, pitch, cx, cy, scale = 1) {
+      const cyaw = Math.cos(yaw), syaw = Math.sin(yaw);
+      const x1 = p.x * cyaw + p.z * syaw;
+      const z1 = -p.x * syaw + p.z * cyaw;
+      const cp = Math.cos(pitch), sp = Math.sin(pitch);
+      const y2 = p.y * cp - z1 * sp;
+      const z2 = p.y * sp + z1 * cp;
+      // Subtle perspective foreshortening for realism
+      const persp = 1 / (1 + z2 * 0.0022);
+      return { x: cx + x1 * scale * persp, y: cy + y2 * scale * persp, z: z2 };
+    }
+
+    // Smooth Catmull-Rom spline to SVG Cubic Bezier Path
+    function ptsToSmoothSVG(pts, closed = false, tension = 0.5) {
+      if (!pts || pts.length < 2) return "";
+      if (pts.length === 2) {
+        return `M ${fmt(pts[0].x)} ${fmt(pts[0].y)} L ${fmt(pts[1].x)} ${fmt(pts[1].y)}` + (closed ? " Z" : "");
+      }
+      let d = `M ${fmt(pts[0].x)} ${fmt(pts[0].y)}`;
+      const n = pts.length;
+      const limit = closed ? n : n - 1;
+      for (let i = 0; i < limit; i++) {
+        const p0 = pts[(i - 1 + n) % n];
+        const p1 = pts[i];
+        const p2 = pts[(i + 1) % n];
+        const p3 = pts[(i + 2) % n];
+
+        const cp1x = (!closed && i === 0) ? p1.x + (p2.x - p1.x) / 3 : p1.x + (p2.x - p0.x) * (tension / 3);
+        const cp1y = (!closed && i === 0) ? p1.y + (p2.y - p1.y) / 3 : p1.y + (p2.y - p0.y) * (tension / 3);
+        const cp2x = (!closed && i === n - 2) ? p2.x - (p2.x - p1.x) / 3 : p2.x - (p3.x - p1.x) * (tension / 3);
+        const cp2y = (!closed && i === n - 2) ? p2.y - (p2.y - p1.y) / 3 : p2.y - (p3.y - p1.y) * (tension / 3);
+
+        d += ` C ${fmt(cp1x)} ${fmt(cp1y)}, ${fmt(cp2x)} ${fmt(cp2y)}, ${fmt(p2.x)} ${fmt(p2.y)}`;
+      }
+      if (closed) d += " Z";
+      return d;
+    }
+
+    function traceSmoothCanvas(ctx, pts, closed = false, tension = 0.5) {
+      if (!pts || pts.length < 2) return;
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      const n = pts.length;
+      const limit = closed ? n : n - 1;
+      for (let i = 0; i < limit; i++) {
+        const p0 = pts[(i - 1 + n) % n];
+        const p1 = pts[i];
+        const p2 = pts[(i + 1) % n];
+        const p3 = pts[(i + 2) % n];
+        const cp1x = (!closed && i === 0) ? p1.x + (p2.x - p1.x) / 3 : p1.x + (p2.x - p0.x) * (tension / 3);
+        const cp1y = (!closed && i === 0) ? p1.y + (p2.y - p1.y) / 3 : p1.y + (p2.y - p0.y) * (tension / 3);
+        const cp2x = (!closed && i === n - 2) ? p2.x - (p2.x - p1.x) / 3 : p2.x - (p3.x - p1.x) * (tension / 3);
+        const cp2y = (!closed && i === n - 2) ? p2.y - (p2.y - p1.y) / 3 : p2.y - (p3.y - p1.y) * (tension / 3);
+        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
+      }
+      if (closed) ctx.closePath();
+    }
+
+    // =========================================================================
+    // 2. HIGH-RESOLUTION 3D PARAMETRIC PETAL & FLOWER MORPHOLOGY
+    // =========================================================================
+    const SPECIES_LIST = ["rose", "sunflower", "tulip", "lily", "orchid", "peony", "poppy", "cherry"];
+
+    const SPECIES_COLORS = {
+      rose:      { base: [120, 14, 34],   mid: [198, 28, 60],   tip: [248, 128, 148], throat: [75, 10, 22] },
+      sunflower: { base: [204, 120, 8],   mid: [246, 188, 18],  tip: [255, 226, 72],  throat: [110, 52, 8] },
+      tulip:     { base: [148, 18, 42],   mid: [224, 54, 72],   tip: [252, 140, 118], throat: [38, 12, 24] },
+      lily:      { base: [185, 30, 82],   mid: [242, 142, 178], tip: [252, 244, 246], throat: [140, 182, 68] },
+      orchid:    { base: [215, 188, 210], mid: [248, 242, 246], tip: [255, 255, 255], throat: [175, 28, 105] },
+      peony:     { base: [195, 78, 108],  mid: [242, 165, 184], tip: [254, 232, 238], throat: [140, 42, 68] },
+      poppy:     { base: [42, 12, 18],    mid: [218, 44, 24],   tip: [248, 96, 48],   throat: [24, 10, 14] },
+      cherry:    { base: [216, 98, 134],  mid: [248, 198, 214], tip: [255, 246, 250], throat: [185, 42, 88] }
+    };
+
+    function getSpeciesColors(species, paletteName) {
+      if (paletteName === "crimson") return { base: [85, 8, 22], mid: [165, 18, 42], tip: [228, 72, 92], throat: [48, 4, 12] };
+      if (paletteName === "blush") return { base: [214, 142, 152], mid: [244, 208, 214], tip: [254, 248, 248], throat: [176, 98, 110] };
+      if (paletteName === "apricot") return { base: [204, 88, 44], mid: [246, 154, 104], tip: [255, 222, 186], throat: [148, 52, 22] };
+      if (paletteName === "violet") return { base: [74, 24, 118], mid: [142, 72, 188], tip: [214, 178, 242], throat: [42, 12, 72] };
+      return SPECIES_COLORS[species] || SPECIES_COLORS.rose;
+    }
+
+    function buildParametricPetal({
+      baseRadius = 2,
+      length = 20,
+      width = 14,
+      angle = 0,
+      cupAngle = 0.6,
+      curlTip = 0.35,
+      transverseCup = 0.22,
+      ruffle = 0,
+      notch = false,
+      pointed = false,
+      heartShape = false,
+      goblet = false,
+      baseZ = 0,
+      yaw = 0,
+      pitch = 0.5,
+      cx = 0,
+      cy = 0,
+      ringT = 0.5,
+      rng
+    }) {
+      const vSteps = 18;
+      const lenJit = length * lerp(0.91, 1.10, rng());
+      const widJit = width * lerp(0.90, 1.12, rng());
+      const curlJit = curlTip + (rng() - 0.5) * 0.16;
+      const asym = (rng() - 0.5) * 0.14;
+      const ca = Math.cos(angle), sa = Math.sin(angle);
+      const px = -sa, py = ca;
+
+      const left = [], right = [], midrib = [], uvGrid = [];
+      const phase = rng() * 6.28;
+
+      for (let i = 0; i <= vSteps; i++) {
+        const v = i / vSteps; // 0 = base/claw, 1 = outer lip
+        let wProf;
+        if (goblet) {
+          // Broad, spoon-shaped tulip tepal: plump rounded belly + soft rounded upper lip
+          wProf = Math.pow(Math.sin(Math.pow(v, 0.72) * Math.PI), 0.54) * (0.42 + 0.65 * smoothstep(0, 0.35, v));
+        } else if (pointed) {
+          wProf = Math.sin(Math.pow(v, 0.78) * Math.PI) * (1 - 0.18 * v);
+        } else if (heartShape) {
+          // Rose-like broad upper margin with narrow claw
+          wProf = Math.pow(Math.sin(v * Math.PI * 0.85), 0.75) * (0.28 + 0.88 * smoothstep(0, 0.75, v));
+          if (v > 0.92) wProf *= lerp(1, 0.45, (v - 0.92) / 0.08);
+        } else if (notch) {
+          wProf = Math.sin(Math.pow(v, 0.65) * Math.PI);
+          if (v > 0.86) wProf *= 0.72;
+        } else {
+          wProf = Math.sin(Math.pow(v, 0.62) * Math.PI) * (0.3 + 0.7 * smoothstep(0, 0.5, v));
+        }
+
+        const halfW = Math.max(0.25, widJit * 0.5 * wProf);
+
+        // Longitudinal elevation + outward curl (or bulbous chalice profile for goblet tulips)
+        let rCenter, zCenter;
+        if (goblet) {
+          const bellyR = lenJit * (0.34 + 0.22 * cupAngle);
+          const lipFlare = lenJit * Math.max(-0.14, (cupAngle - 0.42) * 0.42);
+          rCenter = baseRadius + bellyR * Math.sin(v * Math.PI * 0.80) + lipFlare * Math.pow(v, 1.8);
+          zCenter = baseZ - lenJit * (0.14 * Math.sin(v * Math.PI * 0.5) + 0.94 * v);
+        } else {
+          const bend = cupAngle + curlJit * Math.pow(v, 2.2);
+          rCenter = baseRadius + lenJit * v * Math.sin(bend * 0.85);
+          zCenter = baseZ - lenJit * v * Math.cos(bend * 0.85) + (v > 0.7 ? Math.pow((v - 0.7) / 0.3, 2) * curlJit * lenJit * 0.22 : 0);
+        }
+
+        const tipNotch = notch && v > 0.88 ? -lenJit * 0.09 * Math.pow((v - 0.88) / 0.12, 1.5) : 0;
+        const m3 = { x: (rCenter + tipNotch) * ca + px * asym * halfW * v, y: (rCenter + tipNotch) * sa + py * asym * halfW * v, z: zCenter };
+        const m2 = project3D(m3, yaw, pitch, cx, cy, 1);
+        midrib.push(m2);
+
+        const rWaveL = ruffle > 0 ? Math.sin(v * 15 + phase) * ruffle * v : 0;
+        const rWaveR = ruffle > 0 ? Math.cos(v * 15 + phase) * ruffle * v : 0;
+        const edgeCupZ = goblet ? 0 : (transverseCup * halfW * 0.45 + (v > 0.68 ? curlJit * 2.4 * Math.pow(v - 0.68, 1.5) : 0));
+        const edgeWrapR = goblet ? -transverseCup * halfW * 0.48 : 0;
+
+        const l3 = { x: (rCenter + edgeWrapR) * ca + px * halfW * (1 + asym * 0.5), y: (rCenter + edgeWrapR) * sa + py * halfW * (1 + asym * 0.5), z: zCenter + edgeCupZ + rWaveL };
+        const r3 = { x: (rCenter + edgeWrapR) * ca - px * halfW * (1 - asym * 0.5), y: (rCenter + edgeWrapR) * sa - py * halfW * (1 - asym * 0.5), z: zCenter + edgeCupZ + rWaveR };
+
+        const l2 = project3D(l3, yaw, pitch, cx, cy, 1);
+        const r2 = project3D(r3, yaw, pitch, cx, cy, 1);
+        left.push(l2);
+        right.push(r2);
+
+        // Store transverse UV ribs for smooth botanical contour shading
+        if (i % 3 === 0 && i > 0 && i < vSteps) {
+          const rib = [];
+          for (let u = -1; u <= 1; u += 0.25) {
+            const uCup = goblet ? 0 : transverseCup * halfW * 0.45 * (u * u);
+            const uWrap = goblet ? -transverseCup * halfW * 0.48 * (u * u) : 0;
+            const p3 = {
+              x: (rCenter + uWrap) * ca + px * halfW * u,
+              y: (rCenter + uWrap) * sa + py * halfW * u,
+              z: zCenter + uCup
+            };
+            rib.push(project3D(p3, yaw, pitch, cx, cy, 1));
+          }
+          uvGrid.push({ pts: rib, v });
+        }
+      }
+
+      const poly = [...left, ...right.slice().reverse()];
+      const avgZ = poly.reduce((s, p) => s + p.z, 0) / poly.length;
+      const midBodyZ = midrib[Math.floor(vSteps * 0.45)]?.z ?? avgZ;
+      const sortZ = lerp(avgZ, midBodyZ, 0.45);
+
+      // Secondary veins radiating from basal claw
+      const veins = [];
+      for (const u of [-0.6, -0.3, 0.3, 0.6]) {
+        const veinPts = [];
+        for (let i = 1; i <= vSteps - 2; i += 2) {
+          const t = i / vSteps;
+          const edgePt = u < 0 ? left[i] : right[i];
+          const midPt = midrib[i];
+          const k = Math.abs(u) * (0.4 + 0.55 * t);
+          veinPts.push({ x: lerp(midPt.x, edgePt.x, k), y: lerp(midPt.y, edgePt.y, k) });
+        }
+        veins.push(veinPts);
+      }
+
+      const base2D = project3D({ x: baseRadius * ca, y: baseRadius * sa, z: baseZ }, yaw, pitch, cx, cy, 1);
+      const tip2D = midrib[midrib.length - 1];
+
+      return {
+        poly,
+        midrib,
+        veins,
+        uvGrid,
+        base2D,
+        tip2D,
+        z: sortZ,
+        ringT,
+        normal: { x: Math.cos(angle + yaw), y: Math.sin(angle + yaw) * Math.cos(pitch) }
+      };
+    }
+
+    function buildFlowerHead(species, cx, cy, scale, yaw, pitch, openness, phyllotaxisDeg, rng) {
+      const petals = [];
+      const sepals = [];
+      const stamens = [];
+      const discFlorets = [];
+      const centerPolys = [];
+      const spots = [];
+
+      const openT = openness / 100;
+
+      // Calyx / Sepals
+      if (!["tulip", "lily", "orchid"].includes(species)) {
+        for (let i = 0; i < 5; i++) {
+          const ang = (i / 5) * Math.PI * 2 + 0.35;
+          const sep = buildParametricPetal({
+            baseRadius: 1.8 * scale,
+            length: 11 * scale,
+            width: 4.4 * scale,
+            angle: ang,
+            cupAngle: 1.38,
+            curlTip: 0.45,
+            pointed: true,
+            yaw, pitch, cx, cy, ringT: 0, rng
+          });
+          sep.z -= 7;
+          sepals.push(sep);
+        }
+      }
+
+      if (species === "rose") {
+        // 26 petals in Fibonacci spiral: tight tall inner heart -> broad reflexed outer guard petals
+        const total = 26;
+        const golden = phyllotaxisDeg * DEG;
+        for (let i = 0; i < total; i++) {
+          const t = i / (total - 1);
+          const cup = lerp(0.18, 1.30 * openT + 0.22, Math.pow(t, 0.85));
+          const p = buildParametricPetal({
+            baseRadius: lerp(1.0, 6.8, t) * scale,
+            baseZ: lerp(-3.6, 2.8, t) * scale,
+            length: lerp(11.5, 22, Math.pow(t, 0.72)) * scale,
+            width: lerp(8.5, 20, Math.pow(t, 0.65)) * scale,
+            angle: i * golden + (rng() - 0.5) * 0.08,
+            cupAngle: cup,
+            curlTip: lerp(-0.1, 0.55, t),
+            transverseCup: lerp(0.32, 0.16, t),
+            ruffle: 0.28 * scale * t,
+            heartShape: true,
+            yaw, pitch, cx, cy, ringT: t, rng
+          });
+          p.ringIndex = t < 0.45 ? 1 : 0;
+          petals.push(p);
+        }
+      } else if (species === "sunflower") {
+        // 34 ray florets in 2 staggered whorls
+        const numRays = 34;
+        for (let i = 0; i < numRays; i++) {
+          const ang = (i / numRays) * Math.PI * 2 + (rng() - 0.5) * 0.04;
+          const p = buildParametricPetal({
+            baseRadius: 9.2 * scale,
+            length: (14.5 + (i % 2) * 2.2) * scale,
+            width: 4.4 * scale,
+            angle: ang,
+            cupAngle: 1.25 * openT + 0.2,
+            curlTip: 0.22,
+            pointed: true,
+            yaw, pitch, cx, cy, ringT: i % 2 === 0 ? 0.8 : 0.95, rng
+          });
+          p.ringIndex = 0;
+          petals.push(p);
+        }
+        // 144 Vogel Phyllotaxis Disc Florets on a convex dome (strictly inside 9.6*scale discRing)
+        const numDisc = 144;
+        const c = 0.70 * scale;
+        const golden = phyllotaxisDeg * DEG;
+        for (let n = 1; n <= numDisc; n++) {
+          const r = c * Math.sqrt(n);
+          const theta = n * golden;
+          const domeZ = -2.6 * scale * (1 - n / numDisc);
+          const pt2 = project3D({ x: r * Math.cos(theta), y: r * Math.sin(theta), z: domeZ }, yaw, pitch, cx, cy, 1);
+          discFlorets.push({ x: pt2.x, y: pt2.y, z: pt2.z, r: lerp(0.42, 0.80, n / numDisc) * scale, t: n / numDisc });
+        }
+        const discRing = [];
+        for (let i = 0; i < 28; i++) {
+          const a = (i / 28) * Math.PI * 2;
+          discRing.push(project3D({ x: 9.6 * scale * Math.cos(a), y: 9.6 * scale * Math.sin(a), z: 0 }, yaw, pitch, cx, cy, 1));
+        }
+        centerPolys.push(discRing);
+      } else if (species === "tulip") {
+        // 6 broad spoon-shaped tepals in 2 overlapping whorls forming a lush rounded Satin Goblet
+        for (let w = 0; w < 2; w++) {
+          for (let i = 0; i < 3; i++) {
+            const ang = (i / 3) * Math.PI * 2 + w * (Math.PI / 3) + 0.25;
+            const p = buildParametricPetal({
+              baseRadius: (w === 0 ? 2.4 : 1.3) * scale,
+              baseZ: (w === 0 ? 0.6 : -1.2) * scale,
+              length: (w === 0 ? 25.5 : 24.5) * scale,
+              width: (w === 0 ? 20.5 : 18.5) * scale,
+              angle: ang,
+              cupAngle: lerp(0.16, w === 0 ? 0.56 : 0.44, openT),
+              curlTip: -0.12,
+              transverseCup: 0.44,
+              ruffle: 0.22 * scale,
+              goblet: true,
+              yaw, pitch, cx, cy, ringT: w === 0 ? 0.85 : 0.42, rng
+            });
+            p.ringIndex = w;
+            petals.push(p);
+          }
+        }
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * Math.PI * 2;
+          const base = project3D({ x: 1.2 * scale * Math.cos(a), y: 1.2 * scale * Math.sin(a), z: -1 * scale }, yaw, pitch, cx, cy, 1);
+          const tip = project3D({ x: 2.6 * scale * Math.cos(a), y: 2.6 * scale * Math.sin(a), z: -11 * scale }, yaw, pitch, cx, cy, 1);
+          stamens.push({ base, tip, z: (base.z + tip.z) * 0.5, r: 0.9 * scale });
+        }
+      } else if (species === "lily") {
+        for (let w = 0; w < 2; w++) {
+          for (let i = 0; i < 3; i++) {
+            const ang = (i / 3) * Math.PI * 2 + w * (Math.PI / 3);
+            const p = buildParametricPetal({
+              baseRadius: 1.5 * scale,
+              length: 26 * scale,
+              width: (w === 0 ? 9.2 : 11.2) * scale,
+              angle: ang,
+              cupAngle: 0.92 * openT + 0.25,
+              curlTip: 0.72,
+              ruffle: 0.45 * scale,
+              pointed: true,
+              yaw, pitch, cx, cy, ringT: w === 0 ? 0.85 : 0.45, rng
+            });
+            p.ringIndex = w;
+            petals.push(p);
+            // Stargazer speckles near throat
+            for (let s = 0; s < 6; s++) {
+              const st = lerp(0.18, 0.52, rng());
+              const idx = Math.floor(st * (p.midrib.length - 1));
+              const mp = p.midrib[idx];
+              spots.push({ x: mp.x + (rng() - 0.5) * 3.5 * scale, y: mp.y + (rng() - 0.5) * 3.5 * scale, r: 0.48 * scale });
+            }
+          }
+        }
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * Math.PI * 2 + 0.25;
+          const base = project3D({ x: 1 * scale * Math.cos(a), y: 1 * scale * Math.sin(a), z: 0 }, yaw, pitch, cx, cy, 1);
+          const tip = project3D({ x: 8.5 * scale * Math.cos(a), y: 8.5 * scale * Math.sin(a), z: -15 * scale }, yaw, pitch, cx, cy, 1);
+          stamens.push({ base, tip, r: 1.4 * scale });
+        }
+      } else if (species === "orchid") {
+        const specs = [
+          { ang: -Math.PI / 2, len: 17, wid: 9.5, cup: 1.18, ring: 0, rt: 0.7 },
+          { ang: Math.PI * 0.28, len: 16, wid: 8.5, cup: 1.18, ring: 0, rt: 0.7 },
+          { ang: Math.PI * 0.72, len: 16, wid: 8.5, cup: 1.18, ring: 0, rt: 0.7 },
+          { ang: -Math.PI * 0.12, len: 19, wid: 18, cup: 1.25, ring: 1, rt: 0.9 },
+          { ang: -Math.PI * 0.88, len: 19, wid: 18, cup: 1.25, ring: 1, rt: 0.9 },
+          { ang: Math.PI / 2, len: 11, wid: 9, cup: 0.82, ring: 1, notch: true, rt: 0.2 }
+        ];
+        specs.forEach(s => {
+          const p = buildParametricPetal({
+            baseRadius: 1.8 * scale,
+            length: s.len * scale,
+            width: s.wid * scale,
+            angle: s.ang,
+            cupAngle: s.cup * openT + 0.2,
+            curlTip: 0.22,
+            notch: !!s.notch,
+            yaw, pitch, cx, cy, ringT: s.rt, rng
+          });
+          p.ringIndex = s.ring;
+          petals.push(p);
+        });
+        const colTip = project3D({ x: 0, y: 1.8 * scale, z: -4.5 * scale }, yaw, pitch, cx, cy, 1);
+        const colBase = project3D({ x: 0, y: 0, z: 0 }, yaw, pitch, cx, cy, 1);
+        stamens.push({ base: colBase, tip: colTip, r: 1.9 * scale });
+      } else if (species === "peony") {
+        const total = 26;
+        const golden = phyllotaxisDeg * DEG;
+        for (let i = 0; i < total; i++) {
+          const t = i / (total - 1);
+          const p = buildParametricPetal({
+            baseRadius: lerp(1.4, 6.4, t) * scale,
+            baseZ: lerp(-3.0, 2.5, t) * scale,
+            length: lerp(12.0, 21, Math.pow(t, 0.72)) * scale,
+            width: lerp(9.0, 17.5, t) * scale,
+            angle: i * golden,
+            cupAngle: lerp(0.24, 1.24 * openT + 0.18, Math.pow(t, 0.85)),
+            curlTip: lerp(-0.1, 0.25, t),
+            ruffle: 0.95 * scale,
+            heartShape: true,
+            yaw, pitch, cx, cy, ringT: t, rng
+          });
+          p.ringIndex = t < 0.5 ? 1 : 0;
+          petals.push(p);
+        }
+        for (let i = 0; i < 10; i++) {
+          const a = (i / 10) * Math.PI * 2 + 0.18;
+          const base = project3D({ x: 2.0 * scale * Math.cos(a), y: 2.0 * scale * Math.sin(a), z: -1 * scale }, yaw, pitch, cx, cy, 1);
+          const tip = project3D({ x: 5.2 * scale * Math.cos(a), y: 5.2 * scale * Math.sin(a), z: -6.2 * scale }, yaw, pitch, cx, cy, 1);
+          stamens.push({ base, tip, r: 0.65 * scale });
+        }
+      } else if (species === "poppy") {
+        for (let i = 0; i < 5; i++) {
+          const ang = (i / 5) * Math.PI * 2 + (rng() - 0.5) * 0.14;
+          const p = buildParametricPetal({
+            baseRadius: 2.2 * scale,
+            length: 21 * scale,
+            width: 21 * scale,
+            angle: ang,
+            cupAngle: 0.88 * openT + 0.22,
+            curlTip: 0.15,
+            ruffle: 1.25 * scale,
+            heartShape: true,
+            yaw, pitch, cx, cy, ringT: 0.75, rng
+          });
+          p.ringIndex = i % 2;
+          petals.push(p);
+        }
+        const cap = [];
+        for (let i = 0; i < 16; i++) {
+          const a = (i / 16) * Math.PI * 2;
+          cap.push(project3D({ x: 3.6 * scale * Math.cos(a), y: 3.6 * scale * Math.sin(a), z: -4.2 * scale }, yaw, pitch, cx, cy, 1));
+        }
+        centerPolys.push(cap);
+        for (let i = 0; i < 20; i++) {
+          const a = (i / 20) * Math.PI * 2;
+          const base = project3D({ x: 3.6 * scale * Math.cos(a), y: 3.6 * scale * Math.sin(a), z: -1 * scale }, yaw, pitch, cx, cy, 1);
+          const tip = project3D({ x: 6.8 * scale * Math.cos(a), y: 6.8 * scale * Math.sin(a), z: -5.5 * scale }, yaw, pitch, cx, cy, 1);
+          stamens.push({ base, tip, r: 0.72 * scale });
+        }
+      } else if (species === "cherry") {
+        for (let i = 0; i < 5; i++) {
+          const ang = (i / 5) * Math.PI * 2 - Math.PI / 2;
+          const p = buildParametricPetal({
+            baseRadius: 1.6 * scale,
+            length: 14.5 * scale,
+            width: 11.5 * scale,
+            angle: ang,
+            cupAngle: 1.18 * openT + 0.2,
+            curlTip: 0.1,
+            notch: true,
+            yaw, pitch, cx, cy, ringT: 0.85, rng
+          });
+          p.ringIndex = 0;
+          petals.push(p);
+        }
+        for (let i = 0; i < 22; i++) {
+          const a = (i / 22) * Math.PI * 2;
+          const base = project3D({ x: 1.4 * scale * Math.cos(a), y: 1.4 * scale * Math.sin(a), z: 0 }, yaw, pitch, cx, cy, 1);
+          const tip = project3D({ x: 5.8 * scale * Math.cos(a), y: 5.8 * scale * Math.sin(a), z: -5.8 * scale }, yaw, pitch, cx, cy, 1);
+          stamens.push({ base, tip, r: 0.65 * scale });
+        }
+      }
+
+      petals.sort((a, b) => b.z - a.z);
+      sepals.sort((a, b) => b.z - a.z);
+
+      return { cx, cy, scale, species, sepals, petals, stamens, discFlorets, centerPolys, spots };
+    }
+
+    // Realistic smooth ovate/lanceolate leaflet with varied curvature, asymmetry, and arcuate venation
+    function buildLeaflet(x, y, angle, length, width, serrated = true, opts = {}) {
+      const ca = Math.cos(angle), sa = Math.sin(angle);
+      const px = -sa, py = ca;
+      const steps = 22;
+      const left = [], right = [], midrib = [], veins = [];
+      const bend = opts.bend !== undefined ? opts.bend : 0.04;
+      const asym = opts.asym !== undefined ? opts.asym : 0;
+      const taperExp = opts.taperExp !== undefined ? opts.taperExp : 0.58;
+      const tipTaper = opts.tipTaper !== undefined ? opts.tipTaper : 0.15;
+      const serrAmp = opts.serrationAmp !== undefined ? opts.serrationAmp : 0.055;
+
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const w = width * 0.5 * Math.sin(Math.pow(t, taperExp) * Math.PI) * (1 - tipTaper * t);
+        // Subtle fine botanical serration (not jagged triangles!)
+        const ser = serrated && i > 2 && i < steps - 1 ? 1 + serrAmp * Math.sin(i * Math.PI) : 1;
+        const curveOffset = Math.sin(t * Math.PI) * length * bend;
+        const mx = x + ca * length * t + px * curveOffset;
+        const my = y + sa * length * t + py * curveOffset;
+        midrib.push({ x: mx, y: my });
+        left.push({ x: mx + px * w * ser * (1 + asym), y: my + py * w * ser * (1 + asym) });
+        right.push({ x: mx - px * w * ser * (1 - asym), y: my - py * w * ser * (1 - asym) });
+      }
+      for (let i = 3; i <= steps - 3; i += 3) {
+        const i1 = Math.min(steps - 1, i + 1);
+        const i2 = Math.min(steps - 1, i + 2);
+        veins.push([
+          midrib[i],
+          { x: lerp(midrib[i1].x, left[i1].x, 0.48), y: lerp(midrib[i1].y, left[i1].y, 0.48) },
+          { x: lerp(midrib[i2].x, left[i2].x, 0.78), y: lerp(midrib[i2].y, left[i2].y, 0.78) }
+        ]);
+        veins.push([
+          midrib[i],
+          { x: lerp(midrib[i1].x, right[i1].x, 0.48), y: lerp(midrib[i1].y, right[i1].y, 0.48) },
+          { x: lerp(midrib[i2].x, right[i2].x, 0.78), y: lerp(midrib[i2].y, right[i2].y, 0.78) }
+        ]);
+      }
+      return { poly: [...left, ...right.reverse()], midrib, veins };
+    }
+
+    function buildBud(cx, cy, angle, scale, opts = {}) {
+      const ca = Math.cos(angle), sa = Math.sin(angle);
+      const px = -sa, py = ca;
+      const stage = opts.stage !== undefined ? opts.stage : 1; // 0=tight young, 1=plump swelling, 2=unfurling
+      const len = 12 * scale * (opts.lenScale || 1);
+      const wid = 4.8 * scale * (opts.widScale || 1) * (stage === 2 ? 1.18 : stage === 0 ? 0.82 : 1.0);
+      const bend = opts.bend !== undefined ? opts.bend : 0;
+      const asym = opts.asym !== undefined ? opts.asym : 0;
+      const taperExp = opts.taperExp !== undefined ? opts.taperExp : (stage === 0 ? 0.72 : stage === 2 ? 0.45 : 0.55);
+      const tipPinch = stage === 2 ? 0.14 : stage === 0 ? 0.48 : 0.35;
+      const sepalFlare = opts.sepalFlare !== undefined ? opts.sepalFlare : (stage === 2 ? 1.45 : stage === 0 ? 0.78 : 1.0);
+      const sepalLen = opts.sepalLen !== undefined ? opts.sepalLen : (stage === 0 ? 1.05 : 0.88);
+
+      const petalCone = [];
+      const steps = 14;
+      const l = [], r = [], midrib = [];
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const w = wid * Math.sin(Math.pow(t, taperExp) * Math.PI) * (1 - tipPinch * t);
+        const curve = Math.sin(t * Math.PI) * len * bend;
+        const mx = cx + ca * len * t + px * curve;
+        const my = cy + sa * len * t + py * curve;
+        midrib.push({ x: mx, y: my });
+        l.push({ x: mx + px * w * (1 + asym), y: my + py * w * (1 + asym) });
+        r.push({ x: mx - px * w * (1 - asym), y: my - py * w * (1 - asym) });
+      }
+      petalCone.push(...l, ...r.reverse());
+
+      const uvGrid = [];
+      for (let vi = 1; vi <= 5; vi++) {
+        const v = vi / 6;
+        const w = wid * Math.sin(Math.pow(v, taperExp) * Math.PI) * (1 - tipPinch * v);
+        const curve = Math.sin(v * Math.PI) * len * bend;
+        const mx = cx + ca * len * v + px * curve;
+        const my = cy + sa * len * v + py * curve;
+        const ribPts = [];
+        for (let ui = -4; ui <= 4; ui++) {
+          const u = ui / 4;
+          ribPts.push({ x: mx + px * w * u, y: my + py * w * u });
+        }
+        uvGrid.push({ v, pts: ribPts });
+      }
+
+      const sepalL = [
+        { x: cx, y: cy },
+        { x: cx + ca * len * 0.38 + px * wid * 0.88 * sepalFlare, y: cy + sa * len * 0.38 + py * wid * 0.88 * sepalFlare },
+        { x: cx + ca * len * sepalLen + px * wid * (stage === 2 ? 0.65 * sepalFlare : 0.22), y: cy + sa * len * sepalLen + py * wid * (stage === 2 ? 0.65 * sepalFlare : 0.22) },
+        { x: cx + ca * len * 0.35, y: cy + sa * len * 0.35 }
+      ];
+      const sepalR = [
+        { x: cx, y: cy },
+        { x: cx + ca * len * 0.38 - px * wid * 0.88 * sepalFlare, y: cy + sa * len * 0.38 - py * wid * 0.88 * sepalFlare },
+        { x: cx + ca * len * sepalLen - px * wid * (stage === 2 ? 0.65 * sepalFlare : 0.22), y: cy + sa * len * sepalLen - py * wid * (stage === 2 ? 0.65 * sepalFlare : 0.22) },
+        { x: cx + ca * len * 0.35, y: cy + sa * len * 0.35 }
+      ];
+      return {
+        petalCone, sepalL, sepalR, midrib, uvGrid, angle,
+        base2D: { x: cx, y: cy },
+        tip2D: midrib[midrib.length - 1],
+        cx, cy
+      };
+    }
+
+    // =========================================================================
+    // 3. SCIENTIFIC PLANT ARCHITECTURE & ARRANGEMENT ENGINE
+    // =========================================================================
+    function generateBotanicalDesign(params) {
+      const rng = createRNG(params.seed);
+      const W = params.canvasW;
+      const H = params.canvasH;
+      const scale = (params.plantSize / 100) * (Math.min(W, H) / 210);
+
+      const stems = [];
+      const leaves = [];
+      const flowers = [];
+      const buds = [];
+      const fillers = [];
+
+      const baseOriginX = W * 0.5;
+      const baseOriginY = H * 0.88;
+      const photoRad = params.photoAngle * DEG;
+      const photoStr = params.photoStrength / 100;
+      const gravStr = params.gravitropism / 100;
+
+      function growStem(x0, y0, tx, ty, thickness, segments = 22) {
+        const pts = [];
+        const dx = tx - x0;
+        const dy = ty - y0;
+        const len = Math.hypot(dx, dy) || 1;
+        const nx = -dy / len;
+        const ny = dx / len;
+
+        // Multi-inflection organic S-bend + phototropism + gravitropic necking
+        const swayAmp = len * lerp(0.08, 0.20, rng()) * (rng() < 0.5 ? 1 : -1);
+        const swayFreq = lerp(1.3, 2.2, rng());
+        const swayPhase = rng() * Math.PI * 2;
+        const photoPullX = Math.sin(photoRad) * len * 0.34 * photoStr;
+        const gravPullY = gravStr * len * 0.26;
+
+        for (let i = 0; i <= segments; i++) {
+          const t = i / segments;
+          // Smooth cubic ease for overall phototropism/gravitropism arch
+          const archEnv = Math.sin(t * Math.PI);
+          // S-curve wave that tapers cleanly to 0 at base and flower receptacle
+          const sBend = Math.sin(t * Math.PI * swayFreq + swayPhase) * Math.sin(t * Math.PI) * swayAmp;
+          // Subtle terminal pedicel necking near the flower head
+          const neckBend = Math.pow(t, 3) * (1 - t) * 4 * len * 0.12 * (dx >= 0 ? 1 : -1);
+
+          const x = lerp(x0, tx, t) + archEnv * photoPullX * 0.55 + nx * (sBend + neckBend);
+          const y = lerp(y0, ty, t) + archEnv * gravPullY * 0.55 + ny * (sBend + neckBend);
+          pts.push({ x, y });
+        }
+        const endAngle = Math.atan2(pts[segments].y - pts[segments - 1].y, pts[segments].x - pts[segments - 1].x);
+        stems.push({ pts, thickness: thickness * scale });
+        return { pts, endAngle };
+      }
+
+      const flowerTargets = [];
+      const nF = params.numFlowers;
+      for (let i = 0; i < nF; i++) {
+        const t = nF === 1 ? 0.5 : i / (nF - 1);
+        let fx = baseOriginX, fy = H * 0.35, fScale = 1.0;
+
+        if (params.arrangement === "dome") {
+          const angle = nF === 1 ? -Math.PI / 2 : lerp(-Math.PI * 0.84, -Math.PI * 0.16, t) + (rng() - 0.5) * 0.16;
+          const rad = (nF === 1 ? 85 : lerp(48, 92, rng())) * scale;
+          fx = baseOriginX + Math.cos(angle) * rad * 1.18;
+          fy = baseOriginY - 68 * scale + Math.sin(angle) * rad * 0.94;
+          fScale = lerp(0.62, 1.24, Math.pow(1 - Math.abs(t - 0.5), 0.7) * lerp(0.75, 1.15, rng()));
+        } else if (params.arrangement === "ikebana") {
+          const roles = [
+            { dx: -0.06, dy: -0.58, s: 1.24 },
+            { dx: -0.25, dy: -0.39, s: 0.92 },
+            { dx: 0.23, dy: -0.25, s: 0.72 }
+          ];
+          const r = roles[i % 3];
+          fx = baseOriginX + r.dx * W * 0.72 * scale + (rng() - 0.5) * 22 * scale;
+          fy = baseOriginY + r.dy * H * 0.84 * scale + (rng() - 0.5) * 20 * scale;
+          fScale = r.s * lerp(0.75, 1.12, rng());
+        } else if (params.arrangement === "cascade") {
+          fx = baseOriginX - 18 * scale + Math.sin(t * Math.PI * 1.35) * 56 * scale + (rng() - 0.5) * 14 * scale;
+          fy = H * 0.21 + t * H * 0.52;
+          fScale = lerp(1.22, 0.58, t) * lerp(0.9, 1.1, rng());
+        } else if (params.arrangement === "spiral") {
+          const golden = params.phyllotaxis * DEG;
+          const rad = 24 * Math.sqrt(i + 1) * scale;
+          const a = i * golden;
+          fx = baseOriginX + Math.cos(a) * rad;
+          fy = H * 0.40 + Math.sin(a) * rad * 0.78;
+          fScale = lerp(1.25, 0.60, i / Math.max(1, nF));
+        } else if (params.arrangement === "meadow") {
+          fx = baseOriginX + lerp(-W * 0.30, W * 0.30, t) + (rng() - 0.5) * 16 * scale;
+          fy = H * 0.22 + rng() * H * 0.32;
+          fScale = lerp(0.60, 1.22, rng());
+        } else if (params.arrangement === "specimen") {
+          const cols = Math.min(3, nF);
+          const col = i % cols;
+          const row = Math.floor(i / cols);
+          fx = W * (0.25 + (col / Math.max(1, cols - 1 || 1)) * 0.5);
+          fy = H * (0.25 + row * 0.22);
+          fScale = lerp(0.75, 1.15, rng());
+        }
+
+        fx = clamp(fx, 28, W - 28);
+        fy = clamp(fy, 30, H - 42);
+        flowerTargets.push({ x: fx, y: fy, scale: fScale * scale, isFocal: fScale > 1.0 });
+      }
+
+      // Multi-pass circle-packing relaxation with airy florist spacing so filler pockets open between blooms
+      if (flowerTargets.length > 1) {
+        for (let iter = 0; iter < 28; iter++) {
+          let anyOverlap = false;
+          for (let i = 0; i < flowerTargets.length; i++) {
+            for (let j = i + 1; j < flowerTargets.length; j++) {
+              const a = flowerTargets[i], b = flowerTargets[j];
+              const rA = 23.0 * a.scale, rB = 23.0 * b.scale;
+              const minDist = (rA + rB) * 1.26;
+              let dx = b.x - a.x, dy = b.y - a.y;
+              let d = Math.hypot(dx, dy);
+              if (d < minDist) {
+                anyOverlap = true;
+                if (d < 0.01) {
+                  const ang = (i * 2.399) + 0.5;
+                  dx = Math.cos(ang); dy = Math.sin(ang); d = 1;
+                }
+                const push = (minDist - d) * 0.50;
+                const ux = dx / d, uy = dy / d;
+                a.x -= ux * push; a.y -= uy * push;
+                b.x += ux * push; b.y += uy * push;
+                if (iter >= 16 && d < (rA + rB) * 1.04) {
+                  a.scale *= 0.985;
+                  b.scale *= 0.985;
+                }
+              }
+            }
+          }
+          for (const ft of flowerTargets) {
+            const pad = Math.min(W * 0.24, 21 * ft.scale + 10);
+            ft.x = clamp(ft.x, pad, W - pad);
+            ft.y = clamp(ft.y, Math.min(H * 0.20, 21 * ft.scale + 10), H - 54);
+          }
+          if (!anyOverlap) break;
+        }
+      }
+
+      const stemRecords = [];
+      flowerTargets.forEach((ft, idx) => {
+        const ox = params.arrangement === "specimen" ? ft.x : params.arrangement === "meadow" ? ft.x + (rng() - 0.5) * 14 : baseOriginX + (rng() - 0.5) * 6 * scale;
+        const oy = params.arrangement === "specimen" ? Math.min(H - 18, ft.y + 54 * scale) : baseOriginY;
+        const stem = growStem(ox, oy, ft.x, ft.y, 2.3, 22);
+        stemRecords.push(stem);
+
+        const sp = params.species === "mixed" ? SPECIES_LIST[idx % SPECIES_LIST.length] : params.species;
+        // Varied 3D orientation & developmental openness per bloom (negative pitch orients cup upward in -Y)
+        const lean = (ft.x - baseOriginX) / (W * 0.45);
+        let yaw = lean * 0.42 + (rng() - 0.5) * 0.35;
+        let pitch = sp === "tulip" ? -lerp(1.06, 1.30, rng()) : -lerp(0.24, 0.72, rng());
+        if (params.cameraView === "front") { yaw = (rng() - 0.5) * 0.25; pitch = sp === "tulip" ? -lerp(1.22, 1.42, rng()) : -lerp(0.58, 0.88, rng()); }
+        else if (params.cameraView === "top") { yaw = (rng() - 0.5) * 0.25; pitch = -lerp(0.06, 0.24, rng()); }
+
+        const bloomOpenness = clamp(params.openness * lerp(0.58, 1.12, ft.isFocal ? 0.85 : rng()), 25, 100);
+        const exactPhyllo = Math.abs(params.phyllotaxis - 137.5) < 0.01 ? 137.507764 : params.phyllotaxis;
+        flowers.push(buildFlowerHead(sp, ft.x, ft.y, ft.scale, yaw, pitch, bloomOpenness, exactPhyllo, rng));
+      });
+
+      // Unified 2D spatial occupancy map so flowers, buds, leaves, and fillers stay clean & non-overlapping
+      const bouquetCX = flowers.length ? flowers.reduce((s, f) => s + f.cx, 0) / flowers.length : baseOriginX;
+      const bouquetCY = flowers.length ? flowers.reduce((s, f) => s + f.cy, 0) / flowers.length : H * 0.42;
+
+      const flowerZones = flowers.map(fl => {
+        let maxR = 16 * fl.scale;
+        fl.petals.forEach(p => p.poly.forEach(pt => {
+          const d = Math.hypot(pt.x - fl.cx, pt.y - fl.cy);
+          if (d > maxR) maxR = d;
+        }));
+        return { cx: fl.cx, cy: fl.cy, r: maxR + 1.8 * scale, kind: "flower" };
+      });
+      const occupiedZones = [...flowerZones];
+
+      const isInsideFlower = (x, y, pad = 0) => flowerZones.some(z => Math.hypot(x - z.cx, y - z.cy) < z.r + pad);
+      const hitsZone = (x, y, r = 0, ignoreKind = null) =>
+        occupiedZones.some(z => z.kind !== ignoreKind && Math.hypot(x - z.cx, y - z.cy) < z.r + r);
+      const pushOutsideZones = (x, y, pad = 0, zones = flowerZones) => {
+        let px = x, py = y;
+        for (let pass = 0; pass < 4; pass++) {
+          for (const z of zones) {
+            const dx = px - z.cx, dy = py - z.cy;
+            const d = Math.hypot(dx, dy);
+            const minD = z.r + pad;
+            if (d < minD) {
+              const ang = d > 0.01 ? Math.atan2(dy, dx) : (px >= bouquetCX ? -0.45 : Math.PI + 0.45);
+              px = z.cx + Math.cos(ang) * (minD + 1.5 * scale);
+              py = z.cy + Math.sin(ang) * (minD + 1.5 * scale);
+            }
+          }
+        }
+        return { x: clamp(px, 14, W - 14), y: clamp(py, 14, H - 22) };
+      };
+      const smoothDeflectStem = (pts) => {
+        for (let i = 2; i < pts.length - 1; i++) {
+          if (isInsideFlower(pts[i].x, pts[i].y, 1.5 * scale)) {
+            const dp = pushOutsideZones(pts[i].x, pts[i].y, 1.5 * scale, flowerZones);
+            pts[i].x = lerp(pts[i].x, dp.x, 0.85);
+            pts[i].y = lerp(pts[i].y, dp.y, 0.85);
+          }
+        }
+        // 2-pass Laplacian smoothing on interior points to eliminate any sharp kinks
+        for (let pass = 0; pass < 2; pass++) {
+          for (let i = 1; i < pts.length - 1; i++) {
+            pts[i].x = pts[i - 1].x * 0.22 + pts[i].x * 0.56 + pts[i + 1].x * 0.22;
+            pts[i].y = pts[i - 1].y * 0.22 + pts[i].y * 0.56 + pts[i + 1].y * 0.22;
+          }
+        }
+      };
+
+      // Buds: arranged in a clean, outward-arching upper halo avoiding flowers and each other
+      for (let b = 0; b < params.numBuds; b++) {
+        const parent = stemRecords[b % stemRecords.length];
+        const nodeIdx = Math.floor(lerp(5, 12, (b + 0.5) / Math.max(1, params.numBuds)));
+        const node = parent.pts[clamp(nodeIdx, 2, parent.pts.length - 3)];
+        const side = node.x >= bouquetCX ? 1 : (Math.abs(node.x - bouquetCX) < 8 * scale ? (b % 2 === 0 ? 1 : -1) : -1);
+
+        const budScale = scale * lerp(0.62, 1.32, rng());
+        const stage = b % 3 === 0 ? 0 : rng() < 0.45 ? 2 : 1;
+        const lenScale = lerp(0.78, 1.32, rng());
+        const widScale = lerp(0.74, 1.36, rng());
+        const budR = 7.5 * budScale * Math.max(lenScale, widScale);
+
+        let bestX = null, bestY = null;
+        for (let attempt = 0; attempt < 7; attempt++) {
+          const spread = (18 + attempt * 7 + rng() * 14) * scale;
+          const lift = (18 + (attempt % 3) * 8 + rng() * 18) * scale;
+          const candSide = attempt % 2 === 0 ? side : -side;
+          const rawX = clamp(node.x + candSide * spread, 18, W - 18);
+          const rawY = clamp(node.y - lift, 18, H - 28);
+          const pushed = pushOutsideZones(rawX, rawY, budR + 2.5 * scale, occupiedZones);
+          if (!hitsZone(pushed.x, pushed.y, budR * 0.85)) {
+            bestX = pushed.x; bestY = pushed.y;
+            break;
+          }
+          if (bestX === null) { bestX = pushed.x; bestY = pushed.y; }
+        }
+        const bStem = growStem(node.x, node.y, bestX, bestY, lerp(1.0, 1.45, rng()), 12);
+        smoothDeflectStem(bStem.pts);
+        const endAng = Math.atan2(
+          bStem.pts[bStem.pts.length - 1].y - bStem.pts[bStem.pts.length - 2].y,
+          bStem.pts[bStem.pts.length - 1].x - bStem.pts[bStem.pts.length - 2].x
+        );
+        const bud = buildBud(bestX, bestY, endAng + (rng() - 0.5) * 0.22, budScale, {
+          stage, lenScale, widScale,
+          bend: side * lerp(0.02, 0.12, rng()),
+          asym: (rng() - 0.5) * 0.18,
+          sepalFlare: lerp(0.78, 1.48, rng()),
+          sepalLen: lerp(0.70, 1.10, rng())
+        });
+        buds.push(bud);
+        occupiedZones.push({
+          cx: lerp(bud.base2D.x, bud.tip2D.x, 0.55),
+          cy: lerp(bud.base2D.y, bud.tip2D.y, 0.55),
+          r: budR,
+          kind: "bud"
+        });
+      }
+
+      // Compound Pinnate Leaves (or simple lanceolate for Tulip/Lily): cohesive outward-flowing collar with collision avoidance
+      const isCompound = !["tulip", "lily"].includes(params.species);
+      for (let l = 0; l < params.numLeaves; l++) {
+        const parent = stemRecords[l % stemRecords.length];
+        const frac = (l + 0.5) / Math.max(1, params.numLeaves);
+        const nodeIdx = Math.floor(lerp(3, 12, frac));
+        const node = parent.pts[clamp(nodeIdx, 1, parent.pts.length - 2)];
+
+        // Natural outward radial flow away from bouquet center
+        const distFromAxis = node.x - bouquetCX;
+        const outwardSign = Math.abs(distFromAxis) > 6 * scale ? (distFromAxis >= 0 ? 1 : -1) : (l % 2 === 0 ? 1 : -1);
+        const baseOutAng = outwardSign > 0
+          ? lerp(-0.62, 0.28, frac)           // sweeps gracefully up-right to gently arching right
+          : Math.PI - lerp(-0.62, 0.28, frac); // mirrored sweep on left flank
+
+        const clusterScale = lerp(0.66, 1.32, rng());
+        const aspectRatio = lerp(0.42, 0.68, rng());
+        const taperExp = lerp(0.46, 0.70, rng());
+        const tipTaper = lerp(0.08, 0.26, rng());
+
+        if (isCompound) {
+          const roll = rng();
+          const leafletCount = roll < 0.18 ? 1 : roll < 0.64 ? 3 : 5;
+          const petioleLen = (leafletCount === 5 ? lerp(14, 21, rng()) : lerp(9, 16, rng())) * scale * clusterScale;
+          const termLen = lerp(12, 20, rng()) * scale * clusterScale;
+
+          // Pick the cleanest outward angle that avoids flowers, buds, and existing leaves
+          let chosenAng = null;
+          for (const dAng of [0, 0.26, -0.26, 0.52, -0.52, 0.80]) {
+            const tryAng = baseOutAng + outwardSign * dAng;
+            const tx = node.x + Math.cos(tryAng) * (petioleLen + termLen * 0.55);
+            const ty = node.y + Math.sin(tryAng) * (petioleLen + termLen * 0.55);
+            if (tx < 12 || tx > W - 12 || ty < 14 || ty > H - 14) continue;
+            if (!hitsZone(tx, ty, termLen * 0.36)) {
+              chosenAng = tryAng;
+              break;
+            }
+          }
+          if (chosenAng === null) continue; // skip overcrowded cluster cleanly
+
+          const petioleBend = outwardSign * lerp(1.2, 3.2, rng()) * scale;
+          const pMidX = node.x + Math.cos(chosenAng) * petioleLen * 0.5 - Math.sin(chosenAng) * petioleBend;
+          const pMidY = node.y + Math.sin(chosenAng) * petioleLen * 0.5 + Math.cos(chosenAng) * petioleBend;
+          const px1 = node.x + Math.cos(chosenAng) * petioleLen;
+          const py1 = node.y + Math.sin(chosenAng) * petioleLen;
+          stems.push({ pts: [node, { x: pMidX, y: pMidY }, { x: px1, y: py1 }], thickness: lerp(0.7, 1.0, clusterScale - 0.5) * scale });
+
+          const termLeaf = buildLeaflet(px1, py1, chosenAng + outwardSign * 0.08, termLen, termLen * aspectRatio, true, {
+            bend: outwardSign * lerp(0.04, 0.11, rng()),
+            asym: (rng() - 0.5) * 0.14,
+            taperExp,
+            tipTaper,
+            serrationAmp: lerp(0.035, 0.075, rng())
+          });
+          leaves.push(termLeaf);
+          const tMid = termLeaf.midrib[Math.floor(termLeaf.midrib.length * 0.5)];
+          occupiedZones.push({ cx: tMid.x, cy: tMid.y, r: termLen * 0.34, kind: "leaf" });
+
+          if (leafletCount >= 3) {
+            const pairs = leafletCount === 5 ? [0.42, 0.72] : [0.56];
+            pairs.forEach((pt, pIdx) => {
+              const bx = lerp(node.x, px1, pt) - Math.sin(chosenAng) * petioleBend * Math.sin(pt * Math.PI);
+              const by = lerp(node.y, py1, pt) + Math.cos(chosenAng) * petioleBend * Math.sin(pt * Math.PI);
+              const sizeMul = pIdx === 0 && leafletCount === 5 ? lerp(0.52, 0.66, rng()) : lerp(0.64, 0.82, rng());
+              [-1, 1].forEach(s => {
+                const lLen = termLen * sizeMul * lerp(0.9, 1.1, rng());
+                const lAng = chosenAng + s * lerp(0.72, 1.02, rng());
+                const lx = bx + Math.cos(lAng) * lLen * 0.52;
+                const ly = by + Math.sin(lAng) * lLen * 0.52;
+                if (isInsideFlower(lx, ly, lLen * 0.32) || hitsZone(lx, ly, lLen * 0.26, "leaf")) return;
+                const latLeaf = buildLeaflet(bx, by, lAng, lLen, lLen * aspectRatio * lerp(0.85, 1.12, rng()), true, {
+                  bend: s * lerp(0.03, 0.09, rng()),
+                  asym: s * lerp(-0.10, 0.12, rng()),
+                  taperExp: clamp(taperExp + (rng() - 0.5) * 0.08, 0.42, 0.74),
+                  tipTaper
+                });
+                leaves.push(latLeaf);
+                occupiedZones.push({ cx: lx, cy: ly, r: lLen * 0.28, kind: "leaf" });
+              });
+            });
+          }
+        } else {
+          const lLen = lerp(18, 42, rng()) * scale * lerp(0.78, 1.22, rng());
+          let chosenAng = null;
+          for (const dAng of [0, 0.24, -0.24, 0.48]) {
+            const tryAng = baseOutAng + outwardSign * dAng;
+            const mx = node.x + Math.cos(tryAng) * lLen * 0.55;
+            const my = node.y + Math.sin(tryAng) * lLen * 0.55;
+            if (!isInsideFlower(mx, my, lLen * 0.28) && !hitsZone(mx, my, lLen * 0.22)) {
+              chosenAng = tryAng;
+              break;
+            }
+          }
+          if (chosenAng === null) continue;
+          const blade = buildLeaflet(node.x, node.y, chosenAng, lLen, lLen * lerp(0.18, 0.32, rng()), false, {
+            bend: outwardSign * lerp(0.05, 0.14, rng()),
+            asym: (rng() - 0.5) * 0.12,
+            taperExp: lerp(0.48, 0.68, rng()),
+            tipTaper: lerp(0.12, 0.26, rng())
+          });
+          leaves.push(blade);
+          const bMid = blade.midrib[Math.floor(blade.midrib.length * 0.55)];
+          occupiedZones.push({ cx: bMid.x, cy: bMid.y, r: lLen * 0.24, kind: "leaf" });
+        }
+      }
+
+      // Airy, Flowing Filler Foliage: interspersed directly in open pockets between blooms + framing sides & collar
+      if (params.fillerType !== "none" && params.fillerDensity > 0 && stemRecords.length > 0) {
+        const count = Math.round((params.fillerDensity / 100) * 11);
+        const bouquetRadius = Math.max(
+          42 * scale,
+          flowerZones.reduce((m, z) => Math.max(m, Math.hypot(z.cx - bouquetCX, z.cy - bouquetCY) + z.r), 0)
+        );
+
+        // Discover open interstitial pockets between pairs of primary flowers
+        const pocketCandidates = [];
+        for (let i = 0; i < flowerZones.length; i++) {
+          for (let j = i + 1; j < flowerZones.length; j++) {
+            const a = flowerZones[i], b = flowerZones[j];
+            const dist = Math.hypot(b.cx - a.cx, b.cy - a.cy);
+            if (dist > (a.r + b.r) * 2.4) continue;
+            const mx = (a.cx + b.cx) * 0.5, my = (a.cy + b.cy) * 0.5;
+            const nx = -(b.cy - a.cy) / (dist || 1), ny = (b.cx - a.cx) / (dist || 1);
+            for (const off of [0, 8 * scale, -8 * scale]) {
+              const px = clamp(mx + nx * off, 18, W - 18);
+              const py = clamp(my + ny * off, 20, H - 28);
+              const clearance = flowerZones.reduce((minC, z) => Math.min(minC, Math.hypot(px - z.cx, py - z.cy) - z.r), Infinity);
+              if (clearance > 1.2 * scale) {
+                pocketCandidates.push({ x: px, y: py, clearance });
+              }
+            }
+          }
+        }
+        // Sort pockets by clearance (most open pockets between flowers first)
+        pocketCandidates.sort((a, b) => b.clearance - a.clearance);
+        const chosenPockets = [];
+        for (const pc of pocketCandidates) {
+          if (chosenPockets.every(cp => Math.hypot(pc.x - cp.x, pc.y - cp.y) > 15 * scale)) {
+            chosenPockets.push(pc);
+          }
+        }
+
+        const numInterstitial = Math.min(chosenPockets.length, Math.ceil(count * 0.65));
+
+        for (let f = 0; f < count; f++) {
+          const fType = params.fillerType === "mixed_filler"
+            ? ["babysbreath", "eucalyptus", "fern", "lavender", "berries"][f % 5]
+            : params.fillerType;
+
+          let fx, fy, isInterstitial = false;
+          if (f < numInterstitial) {
+            isInterstitial = true;
+            fx = chosenPockets[f].x;
+            fy = chosenPockets[f].y;
+          } else {
+            // Remaining sprigs frame the sides and lower collar cleanly
+            const sideIdx = f - numInterstitial;
+            const side = sideIdx % 2 === 0 ? -1 : 1;
+            const perSide = Math.max(1, Math.ceil((count - numInterstitial) / 2));
+            const sideT = perSide === 1 ? 0.5 : Math.floor(sideIdx / 2) / Math.max(1, perSide - 1);
+            const elevAng = lerp(0.36 * Math.PI, -0.14 * Math.PI, sideT) + (rng() - 0.5) * 0.14;
+            const fanAng = side > 0 ? elevAng : (Math.PI - elevAng);
+            const reach = bouquetRadius * lerp(0.76, 1.08, rng());
+            const rawFx = clamp(bouquetCX + Math.cos(fanAng) * reach * 1.12, 16, W - 16);
+            const rawFy = clamp(bouquetCY + Math.sin(fanAng) * reach * 0.78 + 16 * scale, bouquetCY - 14 * scale, H - 24);
+            const pushed = pushOutsideZones(rawFx, rawFy, 6 * scale, occupiedZones);
+            fx = pushed.x; fy = pushed.y;
+          }
+
+          // Anchor gracefully to the nearest lower/mid parent stem so filler stems sweep upward cleanly
+          let bestNode = stemRecords[0].pts[5];
+          let bestDist = Infinity;
+          stemRecords.forEach(sr => {
+            const idx = clamp(Math.floor(lerp(3, 9, rng())), 2, sr.pts.length - 4);
+            const pt = sr.pts[idx];
+            const d = Math.hypot(pt.x - fx, pt.y - fy);
+            if (d < bestDist) { bestDist = d; bestNode = pt; }
+          });
+
+          const sprigStemMark = stems.length;
+          const sprigLeafMark = leaves.length;
+          const sprigFillerMark = fillers.length;
+          const sprigZoneMark = occupiedZones.length;
+
+          const fStem = growStem(bestNode.x, bestNode.y, fx, fy, 0.78, 12);
+          smoothDeflectStem(fStem.pts);
+          const sprigAng = Math.atan2(
+            fStem.pts[fStem.pts.length - 1].y - fStem.pts[fStem.pts.length - 2].y,
+            fStem.pts[fStem.pts.length - 1].x - fStem.pts[fStem.pts.length - 2].x
+          );
+          occupiedZones.push({ cx: fx, cy: fy, r: 5.5 * scale, kind: "sprig" });
+
+          if (fType === "babysbreath") {
+            const maxDepth = 2;
+            const sprigScale = lerp(0.80, 1.16, rng());
+            function branchCyme(x, y, ang, depth, len) {
+              if (depth === 0) {
+                const isBud = rng() < 0.28;
+                const r = lerp(1.9, 3.0, rng()) * scale * sprigScale;
+                const blocked = occupiedZones.some(z =>
+                  z.kind !== "sprig" && z.kind !== "leaf" && Math.hypot(x - z.cx, y - z.cy) < z.r + r * 0.80
+                );
+                if (blocked) return false;
+                occupiedZones.push({ cx: x, cy: y, r: r * 1.18, kind: "filler" });
+                if (isBud) {
+                  fillers.push({ type: "gypso_bud", cx: x, cy: y, r: r * 0.65, ang });
+                } else {
+                  const numP = rng() < 0.25 ? 6 : 5;
+                  const blossomPetals = [];
+                  const microStamens = [];
+                  const rot = rng() * Math.PI * 2;
+                  for (let p = 0; p < numP; p++) {
+                    const a = rot + (p / numP) * Math.PI * 2 + (rng() - 0.5) * 0.16;
+                    const ca = Math.cos(a), sa = Math.sin(a), px = -sa, py = ca;
+                    const pLen = r * lerp(1.1, 1.38, rng());
+                    const pWid = r * lerp(0.55, 0.74, rng());
+                    const poly = [
+                      { x: x + ca * 0.2 * r, y: y + sa * 0.2 * r },
+                      { x: x + ca * pLen * 0.45 + px * pWid * 0.38, y: y + sa * pLen * 0.45 + py * pWid * 0.38 },
+                      { x: x + ca * pLen * 0.85 + px * pWid * 0.5, y: y + sa * pLen * 0.85 + py * pWid * 0.5 },
+                      { x: x + ca * pLen, y: y + sa * pLen },
+                      { x: x + ca * pLen * 0.85 - px * pWid * 0.5, y: y + sa * pLen * 0.85 - py * pWid * 0.5 },
+                      { x: x + ca * pLen * 0.45 - px * pWid * 0.38, y: y + sa * pLen * 0.45 - py * pWid * 0.38 }
+                    ];
+                    const vein = [
+                      { x: x + ca * 0.25 * r, y: y + sa * 0.25 * r },
+                      { x: x + ca * pLen * 0.78, y: y + sa * pLen * 0.78 }
+                    ];
+                    blossomPetals.push({ poly, vein });
+                  }
+                  const numSt = 5;
+                  for (let s = 0; s < numSt; s++) {
+                    const sa2 = rot + (s / numSt) * Math.PI * 2 + 0.35;
+                    const stLen = r * lerp(0.42, 0.60, rng());
+                    microStamens.push({
+                      base: { x, y },
+                      tip: { x: x + Math.cos(sa2) * stLen, y: y + Math.sin(sa2) * stLen }
+                    });
+                  }
+                  fillers.push({ type: "gypsophila", cx: x, cy: y, r, petals: blossomPetals, stamens: microStamens });
+                }
+                return true;
+              }
+              // Clean, airy dichotomous forks sweeping naturally along sprig flow (roll back dead twigs with no blooms)
+              let anyPlaced = false;
+              const spread = lerp(0.30, 0.46, rng());
+              const forks = depth === maxDepth && rng() < 0.35 ? [-spread, 0.02, spread] : [-spread, spread];
+              forks.forEach(da => {
+                const segLen = len * lerp(0.84, 1.14, rng());
+                const forkAng = ang + da;
+                const nx = clamp(x + Math.cos(forkAng) * segLen, 14, W - 14);
+                const ny = clamp(y + Math.sin(forkAng) * segLen, 14, H - 16);
+                if (isInsideFlower(nx, ny, 2.2 * scale)) return;
+                const forkStemMark = stems.length;
+                const mx = lerp(x, nx, 0.5) + Math.sin(forkAng) * (da >= 0 ? 1.1 : -1.1) * scale;
+                const my = lerp(y, ny, 0.5) - Math.cos(forkAng) * (da >= 0 ? 1.1 : -1.1) * scale;
+                stems.push({ pts: [{ x, y }, { x: mx, y: my }, { x: nx, y: ny }], thickness: 0.44 * scale });
+                if (branchCyme(nx, ny, forkAng, depth - 1, len * lerp(0.70, 0.82, rng()))) {
+                  anyPlaced = true;
+                } else {
+                  stems.length = forkStemMark;
+                }
+              });
+              return anyPlaced;
+            }
+            branchCyme(fx, fy, sprigAng, maxDepth, lerp(9.0, 12.5, rng()) * scale);
+          } else if (fType === "eucalyptus") {
+            const numPairs = Math.floor(lerp(4, 7, rng()));
+            const eucScale = lerp(0.75, 1.28, rng());
+            for (let k = 0; k < numPairs; k++) {
+              const pIdx = clamp(Math.floor(((k + 2) / (numPairs + 2)) * fStem.pts.length), 1, fStem.pts.length - 1);
+              const p = fStem.pts[pIdx];
+              const pPrev = fStem.pts[Math.max(0, pIdx - 1)];
+              const segAng = Math.atan2(p.y - pPrev.y, p.x - pPrev.x);
+              [-1, 1].forEach(s => {
+                const r = lerp(3.4, 5.8, 1 - k / (numPairs + 1)) * scale * eucScale * lerp(0.88, 1.12, rng());
+                const ang = segAng + s * lerp(0.95, 1.25, rng());
+                const cx = p.x + Math.cos(ang) * (r * 0.95);
+                const cy = p.y + Math.sin(ang) * (r * 0.95);
+                if (hitsZone(cx, cy, r * 0.85, "filler")) return;
+                occupiedZones.push({ cx, cy, r: r * 0.85, kind: "filler" });
+                const disc = [];
+                const aspect = lerp(0.78, 1.04, rng());
+                for (let i = 0; i < 16; i++) {
+                  const a = (i / 16) * Math.PI * 2;
+                  disc.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r * aspect });
+                }
+                const midTip = { x: cx + Math.cos(ang) * r * 0.8, y: cy + Math.sin(ang) * r * 0.8 * aspect };
+                const px = -Math.sin(ang), py = Math.cos(ang);
+                const eucVeins = [
+                  [{ x: lerp(p.x, midTip.x, 0.35), y: lerp(p.y, midTip.y, 0.35) }, { x: cx + px * r * 0.55, y: cy + py * r * 0.55 * aspect }],
+                  [{ x: lerp(p.x, midTip.x, 0.35), y: lerp(p.y, midTip.y, 0.35) }, { x: cx - px * r * 0.55, y: cy - py * r * 0.55 * aspect }],
+                  [{ x: lerp(p.x, midTip.x, 0.65), y: lerp(p.y, midTip.y, 0.65) }, { x: lerp(cx, midTip.x, 0.4) + px * r * 0.4, y: lerp(cy, midTip.y, 0.4) + py * r * 0.4 * aspect }],
+                  [{ x: lerp(p.x, midTip.x, 0.65), y: lerp(p.y, midTip.y, 0.65) }, { x: lerp(cx, midTip.x, 0.4) - px * r * 0.4, y: lerp(cy, midTip.y, 0.4) - py * r * 0.4 * aspect }]
+                ];
+                leaves.push({ poly: disc, midrib: [p, midTip], veins: eucVeins });
+              });
+            }
+          } else if (fType === "fern") {
+            const numPin = Math.floor(lerp(6, 10, rng()));
+            const frondScale = lerp(0.8, 1.25, rng());
+            for (let k = 1; k <= numPin; k++) {
+              const pIdx = clamp(Math.floor(((k + 1) / (numPin + 2)) * fStem.pts.length), 1, fStem.pts.length - 1);
+              const p = fStem.pts[pIdx];
+              const pPrev = fStem.pts[Math.max(0, pIdx - 1)];
+              const segAng = Math.atan2(p.y - pPrev.y, p.x - pPrev.x);
+              const pinLen = lerp(14, 4, k / numPin) * scale * frondScale;
+              [-1, 1].forEach(s => {
+                const pAng = segAng + s * lerp(0.95, 1.22, rng());
+                const midX = p.x + Math.cos(pAng) * pinLen * 0.55;
+                const midY = p.y + Math.sin(pAng) * pinLen * 0.55;
+                if (hitsZone(midX, midY, pinLen * 0.34, "filler")) return;
+                leaves.push(buildLeaflet(p.x, p.y, pAng, pinLen, pinLen * lerp(0.26, 0.38, rng()), false, {
+                  bend: s * 0.06
+                }));
+              });
+            }
+          } else if (fType === "lavender") {
+            const numWhorls = Math.floor(lerp(6, 10, rng()));
+            for (let k = 0; k < numWhorls; k++) {
+              const pIdx = clamp(Math.floor(((k + 3) / (numWhorls + 3)) * fStem.pts.length), 1, fStem.pts.length - 1);
+              const p = fStem.pts[pIdx];
+              const pPrev = fStem.pts[Math.max(0, pIdx - 1)];
+              const segAng = Math.atan2(p.y - pPrev.y, p.x - pPrev.x);
+              const nx = -Math.sin(segAng), ny = Math.cos(segAng);
+              [-1, 1].forEach(s => {
+                const off = lerp(1.4, 2.4, rng()) * scale;
+                const lx = p.x + nx * s * off;
+                const ly = p.y + ny * s * off;
+                const lr = lerp(1.1, 2.0, 1 - k / (numWhorls * 1.4)) * scale;
+                if (!hitsZone(lx, ly, lr, "filler")) {
+                  fillers.push({ type: "lavender", cx: lx, cy: ly, r: lr });
+                }
+              });
+            }
+          } else if (fType === "berries") {
+            const numB = Math.floor(lerp(4, 7, rng()));
+            const nPts = fStem.pts.length;
+            for (let k = 0; k < numB; k++) {
+              const frac = lerp(0.62, 1.0, k / Math.max(1, numB - 1));
+              const pIdx = clamp(Math.floor(frac * (nPts - 1)), 2, nPts - 1);
+              const attach = fStem.pts[pIdx];
+              const pPrev = fStem.pts[Math.max(0, pIdx - 1)];
+              const localAng = Math.atan2(attach.y - pPrev.y, attach.x - pPrev.x);
+              const sideB = k === numB - 1 ? 0 : (k % 2 === 0 ? 1 : -1);
+              const pedAng = localAng + sideB * lerp(0.35, 0.85, rng()) + (rng() - 0.5) * 0.22;
+              const pedLen = (k === numB - 1 ? lerp(4.5, 7.5, rng()) : lerp(6.0, 11.5, rng())) * scale;
+              const bx = clamp(attach.x + Math.cos(pedAng) * pedLen, 14, W - 14);
+              const by = clamp(attach.y + Math.sin(pedAng) * pedLen, 14, H - 16);
+              const br = lerp(1.7, 2.9, rng()) * scale;
+              if (isInsideFlower(bx, by, br + 1.2 * scale) || hitsZone(bx, by, br * 0.85, "sprig")) continue;
+              occupiedZones.push({ cx: bx, cy: by, r: br * 1.25, kind: "filler" });
+
+              // Organic arching 3-point pedicel (never straight geometric spokes)
+              const dx = bx - attach.x, dy = by - attach.y;
+              const pLen = Math.hypot(dx, dy) || 1;
+              const bow = (sideB || (rng() < 0.5 ? 1 : -1)) * lerp(1.4, 2.8, rng()) * scale;
+              const mx = (attach.x + bx) * 0.5 - (dy / pLen) * bow;
+              const my = (attach.y + by) * 0.5 + (dx / pLen) * bow;
+              stems.push({ pts: [attach, { x: mx, y: my }, { x: bx, y: by }], thickness: 0.56 * scale });
+              fillers.push({ type: "berry", cx: bx, cy: by, r: br });
+            }
+          }
+
+          // Never leave a bare filler stem with zero blooms, leaves, or berries
+          if (leaves.length === sprigLeafMark && fillers.length === sprigFillerMark) {
+            stems.length = sprigStemMark;
+            occupiedZones.length = sprigZoneMark;
+          }
+        }
+      }
+
+      return { stems, leaves, flowers, buds, fillers, W, H, scale };
+    }
+
+    // =========================================================================
+    // 4. PHOTOREALISTIC 3D SHADED CANVAS RENDERER
+    // =========================================================================
+    function buildStamenGeometry(st, fl) {
+      const dx = st.tip.x - st.base.x;
+      const dy = st.tip.y - st.base.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const filAng = Math.atan2(dy, dx);
+      // Gentle outward botanical bow so filaments curve gracefully from the receptacle
+      const outX = st.tip.x - fl.cx;
+      const outY = st.tip.y - fl.cy;
+      const nx = -dy / len, ny = dx / len;
+      const bowSign = (nx * outX + ny * outY) >= 0 ? 1 : -1;
+      const bow = Math.min(2.2 * fl.scale, len * 0.14) * bowSign;
+      const mid = { x: (st.base.x + st.tip.x) * 0.5 + nx * bow, y: (st.base.y + st.tip.y) * 0.5 + ny * bow };
+      const filamentPts = [st.base, mid, st.tip];
+
+      // Petite, realistic elongated bilobed anther (never concentric circles!)
+      const isOrchid = fl.species === "orchid";
+      const aLen = st.r * (isOrchid ? 0.72 : 0.92);
+      const aWid = st.r * (isOrchid ? 0.48 : 0.36);
+      const antherAng = isOrchid ? filAng : (filAng + Math.PI * 0.42);
+      const ca = Math.cos(antherAng), sa = Math.sin(antherAng);
+      const px = -sa, py = ca;
+      const antherPoly = [];
+      for (let i = 0; i < 12; i++) {
+        const t = (i / 12) * Math.PI * 2;
+        const ct = Math.cos(t), st2 = Math.sin(t);
+        // Subtle bilobed pinch at the center waist of the anther
+        const pinch = 1 - 0.14 * Math.exp(-ct * ct * 8);
+        antherPoly.push({
+          x: st.tip.x + ca * ct * aLen + px * st2 * aWid * pinch,
+          y: st.tip.y + sa * ct * aLen + py * st2 * aWid * pinch
+        });
+      }
+      const suture = [
+        { x: st.tip.x - ca * aLen * 0.72, y: st.tip.y - sa * aLen * 0.72 },
+        { x: st.tip.x + ca * aLen * 0.72, y: st.tip.y + sa * aLen * 0.72 }
+      ];
+      return { filamentPts, antherPoly, suture, aLen, aWid, antherAng };
+    }
+
+    function rgbStr(c, mult = 1, alpha = 1) {
+      const r = clamp(Math.round(c[0] * mult), 0, 255);
+      const g = clamp(Math.round(c[1] * mult), 0, 255);
+      const b = clamp(Math.round(c[2] * mult), 0, 255);
+      return alpha < 1 ? `rgba(${r},${g},${b},${alpha})` : `rgb(${r},${g},${b})`;
+    }
+
+    function renderPhotorealisticCanvas(design, params) {
+      const pxPerMM = 4.2;
+      const cw = Math.round(design.W * pxPerMM);
+      const ch = Math.round(design.H * pxPerMM);
+      const canvas = document.createElement("canvas");
+      canvas.width = cw;
+      canvas.height = ch;
+      const ctx = canvas.getContext("2d");
+
+      // Display sizing in viewport
+      canvas.style.width = `${design.W}mm`;
+      canvas.style.height = `${design.H}mm`;
+
+      ctx.scale(pxPerMM, pxPerMM);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+
+      // Studio Backdrop
+      if (params.photoBackdrop === "dark_studio") {
+        const bg = ctx.createRadialGradient(design.W * 0.5, design.H * 0.42, 10, design.W * 0.5, design.H * 0.5, Math.max(design.W, design.H) * 0.75);
+        bg.addColorStop(0, "#23272e");
+        bg.addColorStop(1, "#0d0f13");
+        ctx.fillStyle = bg;
+      } else if (params.photoBackdrop === "parchment") {
+        const bg = ctx.createRadialGradient(design.W * 0.5, design.H * 0.45, 20, design.W * 0.5, design.H * 0.5, Math.max(design.W, design.H) * 0.8);
+        bg.addColorStop(0, "#faf6ec");
+        bg.addColorStop(1, "#ebe1cd");
+        ctx.fillStyle = bg;
+      } else {
+        ctx.fillStyle = "#ffffff";
+      }
+      ctx.fillRect(0, 0, design.W, design.H);
+
+      const lightX = Math.sin(params.photoAngle * DEG);
+      const lightY = -Math.cos(params.photoAngle * DEG);
+
+      // 1. Stems with cylindrical shading
+      design.stems.forEach(s => {
+        if (s.pts.length < 2) return;
+        ctx.save();
+        traceSmoothCanvas(ctx, s.pts, false);
+        ctx.strokeStyle = "#1e3a1e";
+        ctx.lineWidth = s.thickness * 1.15;
+        ctx.stroke();
+
+        ctx.strokeStyle = "#3f6a34";
+        ctx.lineWidth = s.thickness * 0.75;
+        ctx.stroke();
+
+        // Specular highlight along stem
+        ctx.translate(-0.22 * s.thickness, -0.15 * s.thickness);
+        ctx.strokeStyle = "rgba(170, 215, 130, 0.35)";
+        ctx.lineWidth = s.thickness * 0.28;
+        ctx.stroke();
+        ctx.restore();
+      });
+
+      // 2. Leaves with botanical gradient & delicate venation
+      design.leaves.forEach(l => {
+        ctx.save();
+        ctx.shadowColor = "rgba(0,0,0,0.28)";
+        ctx.shadowBlur = 2.5;
+        ctx.shadowOffsetY = 1.2;
+
+        traceSmoothCanvas(ctx, l.poly, true);
+        const p0 = l.midrib[0];
+        const p1 = l.midrib[l.midrib.length - 1];
+        const grad = ctx.createLinearGradient(p0.x, p0.y, p1.x, p1.y);
+        grad.addColorStop(0, "#1c3b1c");
+        grad.addColorStop(0.55, "#35682d");
+        grad.addColorStop(1, "#538c40");
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        ctx.shadowColor = "transparent";
+        ctx.strokeStyle = "rgba(18, 42, 18, 0.65)";
+        ctx.lineWidth = 0.25;
+        ctx.stroke();
+
+        // Midrib & veins
+        traceSmoothCanvas(ctx, l.midrib, false);
+        ctx.strokeStyle = "rgba(180, 218, 145, 0.55)";
+        ctx.lineWidth = 0.35;
+        ctx.stroke();
+
+        l.veins.forEach(v => {
+          traceSmoothCanvas(ctx, v, false);
+          ctx.strokeStyle = "rgba(175, 215, 140, 0.32)";
+          ctx.lineWidth = 0.18;
+          ctx.stroke();
+        });
+        ctx.restore();
+      });
+
+      // 3. Buds
+      design.buds.forEach(b => {
+        const pal = getSpeciesColors(params.species === "mixed" ? "rose" : params.species, params.colorPalette);
+        ctx.save();
+        traceSmoothCanvas(ctx, b.petalCone, true);
+        ctx.fillStyle = rgbStr(pal.mid, 0.95);
+        ctx.fill();
+        ctx.strokeStyle = rgbStr(pal.base, 0.8);
+        ctx.lineWidth = 0.25;
+        ctx.stroke();
+
+        [b.sepalL, b.sepalR].forEach(sp => {
+          traceSmoothCanvas(ctx, sp, true);
+          ctx.fillStyle = "#2d5827";
+          ctx.fill();
+        });
+        ctx.restore();
+      });
+
+      // 4. Fillers (Airy Baby's Breath blossoms, Lavender, Berries)
+      design.fillers.forEach(f => {
+        if (f.type === "gypsophila") {
+          ctx.save();
+          ctx.shadowColor = "rgba(0,0,0,0.18)";
+          ctx.shadowBlur = 1.2;
+          f.petals.forEach(pt => {
+            traceSmoothCanvas(ctx, pt.poly, true);
+            ctx.fillStyle = "rgba(252, 250, 246, 0.94)";
+            ctx.fill();
+            ctx.strokeStyle = "rgba(210, 206, 196, 0.5)";
+            ctx.lineWidth = 0.14;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(pt.vein[0].x, pt.vein[0].y);
+            ctx.lineTo(pt.vein[1].x, pt.vein[1].y);
+            ctx.strokeStyle = "rgba(180, 175, 160, 0.35)";
+            ctx.lineWidth = 0.1;
+            ctx.stroke();
+          });
+          if (f.stamens) {
+            f.stamens.forEach(st => {
+              ctx.beginPath();
+              ctx.moveTo(st.base.x, st.base.y);
+              ctx.lineTo(st.tip.x, st.tip.y);
+              ctx.strokeStyle = "#b5a642";
+              ctx.lineWidth = 0.15;
+              ctx.stroke();
+              ctx.beginPath();
+              ctx.arc(st.tip.x, st.tip.y, 0.25, 0, Math.PI * 2);
+              ctx.fillStyle = "#e6c84c";
+              ctx.fill();
+            });
+          }
+          ctx.beginPath();
+          ctx.arc(f.cx, f.cy, f.r * 0.24, 0, Math.PI * 2);
+          ctx.fillStyle = "#8ca348";
+          ctx.fill();
+          ctx.restore();
+        } else if (f.type === "gypso_bud") {
+          ctx.beginPath();
+          ctx.arc(f.cx, f.cy, f.r, 0, Math.PI * 2);
+          ctx.fillStyle = "#e8eed8";
+          ctx.fill();
+          ctx.strokeStyle = "#5b7d48";
+          ctx.lineWidth = 0.2;
+          ctx.stroke();
+        } else if (f.type === "lavender") {
+          ctx.beginPath();
+          ctx.ellipse(f.cx, f.cy, f.r, f.r * 1.35, 0, 0, Math.PI * 2);
+          ctx.fillStyle = "#7e57c2";
+          ctx.fill();
+        } else if (f.type === "berry") {
+          const rg = ctx.createRadialGradient(f.cx - f.r * 0.3, f.cy - f.r * 0.3, f.r * 0.1, f.cx, f.cy, f.r);
+          rg.addColorStop(0, "#fca5a5");
+          rg.addColorStop(0.5, "#dc2626");
+          rg.addColorStop(1, "#7f1d1d");
+          ctx.beginPath();
+          ctx.arc(f.cx, f.cy, f.r, 0, Math.PI * 2);
+          ctx.fillStyle = rg;
+          ctx.fill();
+        }
+      });
+
+      // 5. Flowers (3D Z-sorted petals with subsurface gradients, AO, and specular rims)
+      design.flowers.forEach(fl => {
+        const pal = getSpeciesColors(fl.species, params.colorPalette);
+
+        // Sepals
+        fl.sepals.forEach(s => {
+          traceSmoothCanvas(ctx, s.poly, true);
+          ctx.fillStyle = "#2b5225";
+          ctx.fill();
+        });
+
+        const drawStamens = () => {
+          fl.stamens.forEach(st => {
+            const sg = buildStamenGeometry(st, fl);
+            traceSmoothCanvas(ctx, sg.filamentPts, false);
+            ctx.strokeStyle = "rgba(245, 240, 210, 0.85)";
+            ctx.lineWidth = 0.34 * fl.scale;
+            ctx.stroke();
+
+            traceSmoothCanvas(ctx, sg.antherPoly, true);
+            ctx.fillStyle = fl.species === "poppy" ? "#281c2d" : "#d97706";
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(sg.suture[0].x, sg.suture[0].y);
+            ctx.lineTo(sg.suture[1].x, sg.suture[1].y);
+            ctx.strokeStyle = "rgba(90, 40, 5, 0.45)";
+            ctx.lineWidth = 0.14 * fl.scale;
+            ctx.stroke();
+          });
+        };
+
+        // Petals (back-to-front; for deep-goblet tulips, insert stamens at mid-cup depth before front petals)
+        const stamenMidZ = fl.stamens.length ? fl.stamens.reduce((s, st) => s + (st.z ?? 0), 0) / fl.stamens.length : 0;
+        let stamensDrawn = false;
+        fl.petals.forEach(p => {
+          if (fl.species === "tulip" && !stamensDrawn && p.z < stamenMidZ) {
+            drawStamens();
+            stamensDrawn = true;
+          }
+          ctx.save();
+          ctx.shadowColor = "rgba(0, 0, 0, 0.24)";
+          ctx.shadowBlur = 1.8;
+          ctx.shadowOffsetX = -lightX * 0.8;
+          ctx.shadowOffsetY = -lightY * 0.8 + 0.6;
+
+          const dot = p.normal.x * lightX + p.normal.y * lightY; // -1..1
+          const lightMult = lerp(0.76, 1.14, (dot + 1) * 0.5);
+          const ao = lerp(0.68, 1.0, p.ringT);
+
+          traceSmoothCanvas(ctx, p.poly, true);
+          const grad = ctx.createLinearGradient(p.base2D.x, p.base2D.y, p.tip2D.x, p.tip2D.y);
+          grad.addColorStop(0, rgbStr(pal.throat, ao * lightMult));
+          grad.addColorStop(0.32, rgbStr(pal.base, ao * lightMult));
+          grad.addColorStop(0.76, rgbStr(pal.mid, lightMult));
+          grad.addColorStop(1, rgbStr(pal.tip, lightMult * 1.04));
+          ctx.fillStyle = grad;
+          ctx.fill();
+
+          // Subtle translucent rim highlight on petal edge
+          ctx.shadowColor = "transparent";
+          ctx.strokeStyle = rgbStr(pal.tip, 1.15, 0.42);
+          ctx.lineWidth = 0.25;
+          ctx.stroke();
+
+          // Delicate petal veins
+          p.veins.forEach(v => {
+            traceSmoothCanvas(ctx, v, false);
+            ctx.strokeStyle = rgbStr(pal.base, 0.78, 0.22);
+            ctx.lineWidth = 0.16;
+            ctx.stroke();
+          });
+          ctx.restore();
+        });
+
+        // Lily / Orchid spots
+        fl.spots.forEach(sp => {
+          ctx.beginPath();
+          ctx.arc(sp.x, sp.y, sp.r, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(110, 14, 48, 0.72)";
+          ctx.fill();
+        });
+
+        // Sunflower / Center Disc Florets
+        fl.centerPolys.forEach(cp => {
+          traceSmoothCanvas(ctx, cp, true);
+          ctx.fillStyle = fl.species === "sunflower" ? "#3b220d" : "#4b5e26";
+          ctx.fill();
+        });
+        fl.discFlorets.forEach(df => {
+          ctx.beginPath();
+          ctx.arc(df.x, df.y, df.r, 0, Math.PI * 2);
+          ctx.fillStyle = df.t > 0.62 ? "#d98a16" : (df.t > 0.3 ? "#6b3e14" : "#2c1808");
+          ctx.fill();
+        });
+
+        // Stamens & Anthers (if not already interleaved inside deep goblet)
+        if (!stamensDrawn) drawStamens();
+      });
+
+      return canvas;
+    }
+
+    function renderXRayRadiographCanvas(design, params) {
+      const pxPerMM = 4.2;
+      const cw = Math.round(design.W * pxPerMM);
+      const ch = Math.round(design.H * pxPerMM);
+      const canvas = document.createElement("canvas");
+      canvas.width = cw;
+      canvas.height = ch;
+      const ctx = canvas.getContext("2d");
+      canvas.style.width = `${design.W}mm`;
+      canvas.style.height = `${design.H}mm`;
+
+      ctx.scale(pxPerMM, pxPerMM);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+
+      const isNeg = !!params.xrayBlueprint;
+
+      // Silver-gelatin paper or negative radiograph film base
+      const bg = ctx.createRadialGradient(design.W * 0.5, design.H * 0.45, 15, design.W * 0.5, design.H * 0.5, Math.max(design.W, design.H) * 0.78);
+      if (isNeg) {
+        bg.addColorStop(0, "#10141a");
+        bg.addColorStop(1, "#05070a");
+      } else {
+        bg.addColorStop(0, "#f2f1ec");
+        bg.addColorStop(1, "#e2e0d8");
+      }
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, design.W, design.H);
+
+      // Cumulative X-ray attenuation: overlapping layers darken (multiply) on paper, or brighten (screen) on negative film
+      ctx.globalCompositeOperation = isNeg ? "screen" : "multiply";
+      const ink = (a) => isNeg ? `rgba(225, 234, 244, ${a})` : `rgba(22, 24, 28, ${a})`;
+
+      // 1. Stems: translucent cortex + darker central vascular bundle
+      design.stems.forEach(s => {
+        if (s.pts.length < 2) return;
+        traceSmoothCanvas(ctx, s.pts, false);
+        ctx.strokeStyle = ink(0.14);
+        ctx.lineWidth = s.thickness * 1.15;
+        ctx.stroke();
+
+        // Central vascular bundle
+        ctx.strokeStyle = ink(0.28);
+        ctx.lineWidth = Math.max(0.18, s.thickness * 0.34);
+        ctx.stroke();
+
+        // Tangential cortex edges
+        if (s.thickness >= 0.72) {
+          const sp = buildStemVectorPaths(s);
+          sp.outlines.forEach(d => {
+            const p2d = new Path2D(d);
+            ctx.strokeStyle = ink(0.32);
+            ctx.lineWidth = 0.18;
+            ctx.stroke(p2d);
+          });
+        }
+      });
+
+      // 2. Leaves (including Eucalyptus & Fern fillers): gossamer translucent blades + edge absorption + striations/stipple
+      const xDens = (params.xrayDensity !== undefined ? params.xrayDensity : 55) / 100;
+      const xMinGap = lerp(2.2, 0.48, xDens);
+      const leafUseStriations = params.xrayStyle !== "stipple";
+      const leafUseStipple = params.xrayStyle === "stipple" || params.xrayStyle === "both";
+      const leafStippleStep = lerp(1.35, 0.34, xDens);
+      design.leaves.forEach(l => {
+        traceSmoothCanvas(ctx, l.poly, true);
+        const p0 = l.midrib[0];
+        const p1 = l.midrib[l.midrib.length - 1];
+        const grad = ctx.createLinearGradient(p0.x, p0.y, p1.x, p1.y);
+        grad.addColorStop(0, ink(0.22));
+        grad.addColorStop(0.6, ink(0.12));
+        grad.addColorStop(1, ink(0.06));
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // Edge absorption
+        ctx.strokeStyle = ink(0.38);
+        ctx.lineWidth = 0.22;
+        ctx.stroke();
+
+        if (params.showVeins) {
+          traceSmoothCanvas(ctx, l.midrib, false);
+          ctx.strokeStyle = ink(0.32);
+          ctx.lineWidth = 0.24;
+          ctx.stroke();
+          if (leafUseStriations) {
+            l.veins.forEach(v => {
+              traceSmoothCanvas(ctx, v, false);
+              ctx.strokeStyle = ink(0.18);
+              ctx.lineWidth = 0.13;
+              ctx.stroke();
+            });
+          }
+        }
+
+        if (leafUseStipple && l.poly && l.poly.length >= 3) {
+          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+          let cx = 0, cy = 0;
+          for (const pt of l.poly) {
+            if (pt.x < minX) minX = pt.x;
+            if (pt.y < minY) minY = pt.y;
+            if (pt.x > maxX) maxX = pt.x;
+            if (pt.y > maxY) maxY = pt.y;
+            cx += pt.x; cy += pt.y;
+          }
+          cx /= l.poly.length; cy /= l.poly.length;
+          const maxR = Math.max(1, Math.hypot(maxX - minX, maxY - minY) * 0.5);
+          const gx = p1.x - p0.x, gy = p1.y - p0.y;
+          const gLenSq = Math.max(1e-4, gx * gx + gy * gy);
+          ctx.fillStyle = ink(0.42);
+          for (let y = minY; y <= maxY; y += leafStippleStep) {
+            for (let x = minX; x <= maxX; x += leafStippleStep) {
+              const jx = x + (hash2D(x, y) - 0.5) * leafStippleStep * 0.85;
+              const jy = y + (hash2D(y + 17.3, x - 9.1) - 0.5) * leafStippleStep * 0.85;
+              if (!pointInPoly({ x: jx, y: jy }, l.poly)) continue;
+              const t = clamp(((jx - p0.x) * gx + (jy - p0.y) * gy) / gLenSq, 0, 1);
+              const rNorm = clamp(Math.hypot(jx - cx, jy - cy) / maxR, 0, 1);
+              const prob = clamp(lerp(0.92, 0.10, Math.pow(t, 0.85)) * 0.65 + Math.pow(rNorm, 1.65) * 0.52, 0.08, 0.95);
+              if (hash2D(jx * 1.7, jy * 2.3) < prob) {
+                ctx.fillRect(jx - 0.10, jy - 0.10, 0.20, 0.20);
+              }
+            }
+          }
+        }
+      });
+
+      // 3. Buds (same X-ray gradient, tangential rim, striations, and stipple as flower petals)
+      const budUseStriations = params.xrayStyle !== "stipple";
+      const budUseStipple = params.xrayStyle === "stipple" || params.xrayStyle === "both";
+      const budStippleStep = leafStippleStep;
+      design.buds.forEach(b => {
+        traceSmoothCanvas(ctx, b.petalCone, true);
+        const grad = ctx.createLinearGradient(b.base2D.x, b.base2D.y, b.tip2D.x, b.tip2D.y);
+        grad.addColorStop(0, ink(0.28));
+        grad.addColorStop(0.45, ink(0.14));
+        grad.addColorStop(0.88, ink(0.08));
+        grad.addColorStop(1, ink(0.16));
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        ctx.strokeStyle = ink(0.16);
+        ctx.lineWidth = 0.65;
+        ctx.stroke();
+        ctx.strokeStyle = ink(0.46);
+        ctx.lineWidth = 0.21;
+        ctx.stroke();
+
+        if (params.showVeins && budUseStriations && b.midrib) {
+          traceSmoothCanvas(ctx, b.midrib, false);
+          ctx.strokeStyle = ink(0.18);
+          ctx.lineWidth = 0.14;
+          ctx.stroke();
+          const half = Math.floor(b.petalCone.length / 2);
+          for (const k of getStriationFractions(b.petalCone, xMinGap * 0.70, 7)) {
+            const rib = [];
+            for (let i = 0; i < half; i++) {
+              const mp = b.midrib[Math.min(i, b.midrib.length - 1)];
+              const edgePt = k < 0 ? b.petalCone[i] : b.petalCone[b.petalCone.length - 1 - i];
+              rib.push({ x: lerp(mp.x, edgePt.x, Math.abs(k)), y: lerp(mp.y, edgePt.y, Math.abs(k)) });
+            }
+            if (rib.length >= 2) {
+              traceSmoothCanvas(ctx, rib, false);
+              ctx.strokeStyle = ink(0.13);
+              ctx.lineWidth = 0.10;
+              ctx.stroke();
+            }
+          }
+          if (b.uvGrid) {
+            b.uvGrid.forEach(rib => {
+              if (rib.v <= 0.55) {
+                traceSmoothCanvas(ctx, rib.pts, false);
+                ctx.strokeStyle = ink(lerp(0.16, 0.08, rib.v / 0.55));
+                ctx.lineWidth = 0.10;
+                ctx.stroke();
+              }
+            });
+          }
+        }
+
+        if (budUseStipple && b.petalCone && b.petalCone.length >= 3) {
+          let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+          let cx = 0, cy = 0;
+          for (const pt of b.petalCone) {
+            if (pt.x < minX) minX = pt.x;
+            if (pt.y < minY) minY = pt.y;
+            if (pt.x > maxX) maxX = pt.x;
+            if (pt.y > maxY) maxY = pt.y;
+            cx += pt.x; cy += pt.y;
+          }
+          cx /= b.petalCone.length; cy /= b.petalCone.length;
+          const maxR = Math.max(1, Math.hypot(maxX - minX, maxY - minY) * 0.5);
+          const gx = b.tip2D.x - b.base2D.x;
+          const gy = b.tip2D.y - b.base2D.y;
+          const gLenSq = Math.max(1e-4, gx * gx + gy * gy);
+          ctx.fillStyle = ink(0.45);
+          for (let y = minY; y <= maxY; y += budStippleStep) {
+            for (let x = minX; x <= maxX; x += budStippleStep) {
+              const jx = x + (hash2D(x, y) - 0.5) * budStippleStep * 0.85;
+              const jy = y + (hash2D(y + 17.3, x - 9.1) - 0.5) * budStippleStep * 0.85;
+              if (!pointInPoly({ x: jx, y: jy }, b.petalCone)) continue;
+              const t = clamp(((jx - b.base2D.x) * gx + (jy - b.base2D.y) * gy) / gLenSq, 0, 1);
+              const rNorm = clamp(Math.hypot(jx - cx, jy - cy) / maxR, 0, 1);
+              const prob = clamp(lerp(0.95, 0.10, Math.pow(t, 0.85)) * 0.68 + Math.pow(rNorm, 1.65) * 0.55, 0.08, 0.96);
+              if (hash2D(jx * 1.7, jy * 2.3) < prob) {
+                ctx.fillRect(jx - 0.10, jy - 0.10, 0.20, 0.20);
+              }
+            }
+          }
+        }
+
+        [b.sepalL, b.sepalR].forEach(sp => {
+          traceSmoothCanvas(ctx, sp, true);
+          ctx.fillStyle = ink(0.22);
+          ctx.fill();
+          ctx.strokeStyle = ink(0.40);
+          ctx.lineWidth = 0.18;
+          ctx.stroke();
+          if (params.showVeins && budUseStriations && sp.length >= 4) {
+            for (const w of [0.22, 0.50, 0.78]) {
+              const mid = { x: lerp(sp[3].x, sp[1].x, w), y: lerp(sp[3].y, sp[1].y, w) };
+              traceSmoothCanvas(ctx, [sp[0], mid, sp[2]], false);
+              ctx.strokeStyle = ink(0.16);
+              ctx.lineWidth = 0.11;
+              ctx.stroke();
+            }
+          }
+        });
+      });
+
+      // 4. Fillers (same X-ray gradient, tangential rim, striations, and stipple as primary flowers)
+      design.fillers.forEach(f => {
+        if (f.type === "gypsophila") {
+          f.petals.forEach(pt => {
+            traceSmoothCanvas(ctx, pt.poly, true);
+            const grad = ctx.createLinearGradient(pt.vein[0].x, pt.vein[0].y, pt.vein[1].x, pt.vein[1].y);
+            grad.addColorStop(0, ink(0.24));
+            grad.addColorStop(0.55, ink(0.11));
+            grad.addColorStop(1, ink(0.07));
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            ctx.strokeStyle = ink(0.14);
+            ctx.lineWidth = 0.45;
+            ctx.stroke();
+            ctx.strokeStyle = ink(0.36);
+            ctx.lineWidth = 0.16;
+            ctx.stroke();
+
+            if (params.showVeins && leafUseStriations) {
+              ctx.beginPath();
+              ctx.moveTo(pt.vein[0].x, pt.vein[0].y);
+              ctx.lineTo(pt.vein[1].x, pt.vein[1].y);
+              ctx.strokeStyle = ink(0.20);
+              ctx.lineWidth = 0.11;
+              ctx.stroke();
+            }
+
+            if (leafUseStipple && pt.poly && pt.poly.length >= 3) {
+              let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+              for (const p2 of pt.poly) {
+                if (p2.x < minX) minX = p2.x;
+                if (p2.y < minY) minY = p2.y;
+                if (p2.x > maxX) maxX = p2.x;
+                if (p2.y > maxY) maxY = p2.y;
+              }
+              const gx = pt.vein[1].x - pt.vein[0].x, gy = pt.vein[1].y - pt.vein[0].y;
+              const gLenSq = Math.max(1e-4, gx * gx + gy * gy);
+              ctx.fillStyle = ink(0.42);
+              for (let y = minY; y <= maxY; y += leafStippleStep) {
+                for (let x = minX; x <= maxX; x += leafStippleStep) {
+                  const jx = x + (hash2D(x, y) - 0.5) * leafStippleStep * 0.85;
+                  const jy = y + (hash2D(y + 17.3, x - 9.1) - 0.5) * leafStippleStep * 0.85;
+                  if (!pointInPoly({ x: jx, y: jy }, pt.poly)) continue;
+                  const t = clamp(((jx - pt.vein[0].x) * gx + (jy - pt.vein[0].y) * gy) / gLenSq, 0, 1);
+                  const prob = lerp(0.92, 0.14, Math.pow(t, 0.85));
+                  if (hash2D(jx * 1.7, jy * 2.3) < prob) ctx.fillRect(jx - 0.09, jy - 0.09, 0.18, 0.18);
+                }
+              }
+            }
+          });
+          if (f.stamens) {
+            f.stamens.forEach(st => {
+              ctx.beginPath();
+              ctx.moveTo(st.base.x, st.base.y);
+              ctx.lineTo(st.tip.x, st.tip.y);
+              ctx.strokeStyle = ink(0.35);
+              ctx.lineWidth = 0.12;
+              ctx.stroke();
+              ctx.beginPath();
+              ctx.arc(st.tip.x, st.tip.y, 0.25, 0, Math.PI * 2);
+              ctx.fillStyle = ink(0.55);
+              ctx.fill();
+            });
+          }
+          ctx.beginPath();
+          ctx.arc(f.cx, f.cy, f.r * 0.24, 0, Math.PI * 2);
+          ctx.fillStyle = ink(0.45);
+          ctx.fill();
+        } else {
+          const rGrad = ctx.createRadialGradient(f.cx, f.cy, f.r * 0.1, f.cx, f.cy, f.r);
+          rGrad.addColorStop(0, ink(0.36));
+          rGrad.addColorStop(0.65, ink(0.14));
+          rGrad.addColorStop(1, ink(0.24));
+          ctx.beginPath();
+          ctx.arc(f.cx, f.cy, f.r, 0, Math.PI * 2);
+          ctx.fillStyle = rGrad;
+          ctx.fill();
+          ctx.strokeStyle = ink(0.16);
+          ctx.lineWidth = 0.50;
+          ctx.stroke();
+          ctx.strokeStyle = ink(0.42);
+          ctx.lineWidth = 0.18;
+          ctx.stroke();
+
+          if (leafUseStipple) {
+            ctx.fillStyle = ink(0.44);
+            for (let y = f.cy - f.r; y <= f.cy + f.r; y += leafStippleStep) {
+              for (let x = f.cx - f.r; x <= f.cx + f.r; x += leafStippleStep) {
+                const jx = x + (hash2D(x, y) - 0.5) * leafStippleStep * 0.85;
+                const jy = y + (hash2D(y + 17.3, x - 9.1) - 0.5) * leafStippleStep * 0.85;
+                const dNorm = Math.hypot(jx - f.cx, jy - f.cy) / Math.max(0.1, f.r);
+                if (dNorm > 1) continue;
+                const prob = clamp(lerp(0.88, 0.25, dNorm) * 0.65 + Math.pow(dNorm, 1.7) * 0.52, 0.12, 0.95);
+                if (hash2D(jx * 1.7, jy * 2.3) < prob) ctx.fillRect(jx - 0.09, jy - 0.09, 0.18, 0.18);
+              }
+            }
+          }
+        }
+      });
+
+      // 5. Flowers: cumulative translucent petals + tangential edge absorption + radial striations + dense core
+      const useStriations = params.xrayStyle !== "stipple";
+      const useStipple = params.xrayStyle === "stipple" || params.xrayStyle === "both";
+      const stippleStep = leafStippleStep;
+
+      design.flowers.forEach(fl => {
+        fl.sepals.forEach(s => {
+          traceSmoothCanvas(ctx, s.poly, true);
+          const sGrad = ctx.createLinearGradient(s.base2D.x, s.base2D.y, s.tip2D.x, s.tip2D.y);
+          sGrad.addColorStop(0, ink(0.28));
+          sGrad.addColorStop(0.55, ink(0.14));
+          sGrad.addColorStop(1, ink(0.08));
+          ctx.fillStyle = sGrad;
+          ctx.fill();
+          ctx.strokeStyle = ink(0.16);
+          ctx.lineWidth = 0.55;
+          ctx.stroke();
+          ctx.strokeStyle = ink(0.42);
+          ctx.lineWidth = 0.20;
+          ctx.stroke();
+
+          if (params.showVeins && useStriations && s.midrib) {
+            traceSmoothCanvas(ctx, s.midrib, false);
+            ctx.strokeStyle = ink(0.22);
+            ctx.lineWidth = 0.14;
+            ctx.stroke();
+            const half = Math.floor(s.poly.length / 2);
+            for (const k of getStriationFractions(s.poly, xMinGap, 4)) {
+              const rib = [];
+              for (let i = 0; i < half; i++) {
+                const mp = s.midrib[Math.min(i, s.midrib.length - 1)];
+                const edgePt = k < 0 ? s.poly[i] : s.poly[s.poly.length - 1 - i];
+                rib.push({ x: lerp(mp.x, edgePt.x, Math.abs(k)), y: lerp(mp.y, edgePt.y, Math.abs(k)) });
+              }
+              if (rib.length >= 2) {
+                traceSmoothCanvas(ctx, rib, false);
+                ctx.strokeStyle = ink(0.12);
+                ctx.lineWidth = 0.10;
+                ctx.stroke();
+              }
+            }
+          }
+          if (useStipple && s.poly && s.poly.length >= 3) {
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            for (const pt of s.poly) {
+              if (pt.x < minX) minX = pt.x;
+              if (pt.y < minY) minY = pt.y;
+              if (pt.x > maxX) maxX = pt.x;
+              if (pt.y > maxY) maxY = pt.y;
+            }
+            const gx = s.tip2D.x - s.base2D.x, gy = s.tip2D.y - s.base2D.y;
+            const gLenSq = Math.max(1e-4, gx * gx + gy * gy);
+            ctx.fillStyle = ink(0.42);
+            for (let y = minY; y <= maxY; y += stippleStep) {
+              for (let x = minX; x <= maxX; x += stippleStep) {
+                const jx = x + (hash2D(x, y) - 0.5) * stippleStep * 0.85;
+                const jy = y + (hash2D(y + 17.3, x - 9.1) - 0.5) * stippleStep * 0.85;
+                if (!pointInPoly({ x: jx, y: jy }, s.poly)) continue;
+                const t = clamp(((jx - s.base2D.x) * gx + (jy - s.base2D.y) * gy) / gLenSq, 0, 1);
+                if (hash2D(jx * 1.7, jy * 2.3) < lerp(0.92, 0.12, Math.pow(t, 0.85))) {
+                  ctx.fillRect(jx - 0.10, jy - 0.10, 0.20, 0.20);
+                }
+              }
+            }
+          }
+        });
+
+        fl.petals.forEach(p => {
+          traceSmoothCanvas(ctx, p.poly, true);
+          const grad = ctx.createLinearGradient(p.base2D.x, p.base2D.y, p.tip2D.x, p.tip2D.y);
+          grad.addColorStop(0, ink(0.24));
+          grad.addColorStop(0.45, ink(0.11));
+          grad.addColorStop(0.88, ink(0.06));
+          grad.addColorStop(1, ink(0.14)); // slight edge density
+          ctx.fillStyle = grad;
+          ctx.fill();
+
+          // Soft inner tangential rim band + crisp outer X-ray edge
+          ctx.strokeStyle = ink(0.16);
+          ctx.lineWidth = 0.75;
+          ctx.stroke();
+          ctx.strokeStyle = ink(0.48);
+          ctx.lineWidth = 0.22;
+          ctx.stroke();
+
+          // Fine radial vascular striations (characteristic of Dain Tasker radiographs)
+          if (params.showVeins && useStriations) {
+            traceSmoothCanvas(ctx, p.midrib, false);
+            ctx.strokeStyle = ink(0.16);
+            ctx.lineWidth = 0.14;
+            ctx.stroke();
+
+            const half = Math.floor(p.poly.length / 2);
+            for (const k of getStriationFractions(p.poly, xMinGap, 10)) {
+              const rib = [];
+              for (let i = 0; i < half; i++) {
+                const mp = p.midrib[Math.min(i, p.midrib.length - 1)];
+                const edgePt = k < 0 ? p.poly[i] : p.poly[p.poly.length - 1 - i];
+                rib.push({ x: lerp(mp.x, edgePt.x, Math.abs(k)), y: lerp(mp.y, edgePt.y, Math.abs(k)) });
+              }
+              if (rib.length >= 2) {
+                traceSmoothCanvas(ctx, rib, false);
+                ctx.strokeStyle = ink(0.10);
+                ctx.lineWidth = 0.10;
+                ctx.stroke();
+              }
+            }
+
+            p.veins.forEach(v => {
+              traceSmoothCanvas(ctx, v, false);
+              ctx.strokeStyle = ink(0.14);
+              ctx.lineWidth = 0.11;
+              ctx.stroke();
+            });
+          }
+
+          if (useStipple && p.poly && p.poly.length >= 3) {
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            let cx = 0, cy = 0;
+            for (const pt of p.poly) {
+              if (pt.x < minX) minX = pt.x;
+              if (pt.y < minY) minY = pt.y;
+              if (pt.x > maxX) maxX = pt.x;
+              if (pt.y > maxY) maxY = pt.y;
+              cx += pt.x; cy += pt.y;
+            }
+            cx /= p.poly.length; cy /= p.poly.length;
+            const maxR = Math.max(1, Math.hypot(maxX - minX, maxY - minY) * 0.5);
+            const gx = p.tip2D.x - p.base2D.x;
+            const gy = p.tip2D.y - p.base2D.y;
+            const gLenSq = Math.max(1e-4, gx * gx + gy * gy);
+            ctx.fillStyle = ink(0.45);
+            for (let y = minY; y <= maxY; y += stippleStep) {
+              for (let x = minX; x <= maxX; x += stippleStep) {
+                const jx = x + (hash2D(x, y) - 0.5) * stippleStep * 0.85;
+                const jy = y + (hash2D(y + 17.3, x - 9.1) - 0.5) * stippleStep * 0.85;
+                if (!pointInPoly({ x: jx, y: jy }, p.poly)) continue;
+                const t = clamp(((jx - p.base2D.x) * gx + (jy - p.base2D.y) * gy) / gLenSq, 0, 1);
+                const rNorm = clamp(Math.hypot(jx - cx, jy - cy) / maxR, 0, 1);
+                const prob = clamp(lerp(0.95, 0.10, Math.pow(t, 0.85)) * 0.68 + Math.pow(rNorm, 1.65) * 0.55, 0.08, 0.96);
+                if (hash2D(jx * 1.7, jy * 2.3) < prob) {
+                  ctx.fillRect(jx - 0.10, jy - 0.10, 0.20, 0.20);
+                }
+              }
+            }
+          }
+        });
+
+        // Dense internal receptacle / ovary / pollen core
+        const coreY = fl.species === "tulip" ? fl.cy - 2.6 * fl.scale : fl.cy;
+        const coreR = (fl.species === "sunflower" ? 9.6 : fl.species === "tulip" ? 3.8 : 5.0) * fl.scale;
+        const coreGrad = ctx.createRadialGradient(fl.cx, coreY, coreR * 0.1, fl.cx, coreY, coreR);
+        coreGrad.addColorStop(0, ink(0.84));
+        coreGrad.addColorStop(0.55, ink(0.46));
+        coreGrad.addColorStop(1, ink(0.04));
+        ctx.beginPath();
+        ctx.arc(fl.cx, coreY, coreR, 0, Math.PI * 2);
+        ctx.fillStyle = coreGrad;
+        ctx.fill();
+
+        // Clearly connected curved stamen filaments & petite bilobed anthers
+        fl.stamens.forEach(st => {
+          const sg = buildStamenGeometry(st, fl);
+          traceSmoothCanvas(ctx, sg.filamentPts, false);
+          ctx.strokeStyle = ink(0.48);
+          ctx.lineWidth = Math.max(0.18, 0.24 * fl.scale);
+          ctx.stroke();
+
+          traceSmoothCanvas(ctx, sg.antherPoly, true);
+          ctx.fillStyle = ink(0.54);
+          ctx.fill();
+          ctx.strokeStyle = ink(0.68);
+          ctx.lineWidth = 0.14;
+          ctx.stroke();
+        });
+
+        fl.discFlorets.forEach(df => {
+          ctx.beginPath();
+          ctx.arc(df.x, df.y, df.r, 0, Math.PI * 2);
+          ctx.fillStyle = ink(df.t > 0.6 ? 0.35 : 0.65);
+          ctx.fill();
+        });
+      });
+
+      ctx.globalCompositeOperation = "source-over";
+      return canvas;
+    }
+
+    // =========================================================================
+    // 5. VECTOR HALFTONE, X-RAY, WHITE-ON-BLACK & LASER WOOD ENGINE
+    // =========================================================================
+    function circlePath(cx, cy, r) {
+      return `M ${fmt(cx - r)} ${fmt(cy)} A ${fmt(r)} ${fmt(r)} 0 1 0 ${fmt(cx + r)} ${fmt(cy)} A ${fmt(r)} ${fmt(r)} 0 1 0 ${fmt(cx - r)} ${fmt(cy)} Z`;
+    }
+
+    function pointInPoly(pt, poly) {
+      let inside = false;
+      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const xi = poly[i].x, yi = poly[i].y;
+        const xj = poly[j].x, yj = poly[j].y;
+        if (((yi > pt.y) !== (yj > pt.y)) && (pt.x < ((xj - xi) * (pt.y - yi)) / (yj - yi + 1e-9) + xi)) {
+          inside = !inside;
+        }
+      }
+      return inside;
+    }
+
+    function hash2D(x, y) {
+      const h = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+      return h - Math.floor(h);
+    }
+
+    function generateGraduatedStipple(poly, gradStart, gradEnd, spacing, biasRim = false) {
+      const paths = [];
+      if (!poly || poly.length < 3) return paths;
+
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      let cx = 0, cy = 0;
+      for (const p of poly) {
+        if (p.x < minX) minX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y > maxY) maxY = p.y;
+        cx += p.x; cy += p.y;
+      }
+      cx /= poly.length; cy /= poly.length;
+      const maxR = Math.max(1, Math.hypot(maxX - minX, maxY - minY) * 0.5);
+
+      const gx = (gradEnd ? gradEnd.x - gradStart.x : 0);
+      const gy = (gradEnd ? gradEnd.y - gradStart.y : maxY - minY);
+      const gLenSq = Math.max(1e-4, gx * gx + gy * gy);
+      const sx = gradStart ? gradStart.x : minX;
+      const sy = gradStart ? gradStart.y : minY;
+
+      const step = Math.max(0.24, spacing * 0.36);
+      for (let y = minY; y <= maxY; y += step) {
+        for (let x = minX; x <= maxX; x += step) {
+          const jx = x + (hash2D(x, y) - 0.5) * step * 0.85;
+          const jy = y + (hash2D(y + 17.3, x - 9.1) - 0.5) * step * 0.85;
+          if (!pointInPoly({ x: jx, y: jy }, poly)) continue;
+
+          const t = clamp(((jx - sx) * gx + (jy - sy) * gy) / gLenSq, 0, 1);
+          let prob = lerp(0.96, 0.10, Math.pow(t, 0.85));
+          if (biasRim) {
+            const rNorm = clamp(Math.hypot(jx - cx, jy - cy) / maxR, 0, 1);
+            prob = clamp(prob * 0.68 + Math.pow(rNorm, 1.65) * 0.58, 0.08, 0.97);
+          }
+          if (hash2D(jx * 1.7, jy * 2.3) < prob) {
+            paths.push(`M ${fmt(jx - 0.08)} ${fmt(jy)} L ${fmt(jx + 0.08)} ${fmt(jy)}`);
+          }
+        }
+      }
+      return paths;
+    }
+
+    function generateHatchPaths(petal, spacing, angleRad, style, gradStart = null, gradEnd = null) {
+      const paths = [];
+      const poly = petal.poly;
+      if (!poly || poly.length < 3) return paths;
+
+      if (style === "uv_contour" && petal.uvGrid && petal.uvGrid.length > 0) {
+        petal.uvGrid.forEach((rib, idx) => {
+          paths.push(ptsToSmoothSVG(rib.pts, false));
+          // Extra intermediate contour ribs near the shaded base (v < 0.55) for graduated depth
+          if (rib.v < 0.55 && idx + 1 < petal.uvGrid.length) {
+            const nextRib = petal.uvGrid[idx + 1];
+            const mid = rib.pts.map((p, k) => ({
+              x: lerp(p.x, nextRib.pts[k]?.x ?? p.x, 0.5),
+              y: lerp(p.y, nextRib.pts[k]?.y ?? p.y, 0.5)
+            }));
+            paths.push(ptsToSmoothSVG(mid, false));
+          }
+        });
+        return paths;
+      }
+
+      const gs = gradStart || petal.base2D || poly[0];
+      const ge = gradEnd || petal.tip2D || poly[Math.floor(poly.length / 2)];
+
+      if (style === "stipple") {
+        return generateGraduatedStipple(poly, gs, ge, spacing, false);
+      }
+
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const p of poly) {
+        if (p.x < minX) minX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y > maxY) maxY = p.y;
+      }
+      const cx = (minX + maxX) * 0.5, cy = (minY + maxY) * 0.5;
+      const diag = Math.hypot(maxX - minX, maxY - minY) * 0.65;
+
+      const angles = style === "crosshatch" ? [angleRad, angleRad + Math.PI / 2] : [angleRad];
+      for (const ang of angles) {
+        const ca = Math.cos(ang), sa = Math.sin(ang);
+        const nx = -sa, ny = ca;
+        // Variable step produces graduated tonal ramp from dense shadow to open highlight
+        for (let d = -diag; d <= diag; ) {
+          const rampT = clamp((d + diag) / Math.max(1e-4, 2 * diag), 0, 1);
+          const ox = cx + nx * d, oy = cy + ny * d;
+          const p1 = { x: ox - ca * diag, y: oy - sa * diag };
+          const p2 = { x: ox + ca * diag, y: oy + sa * diag };
+          const hits = [];
+          for (let i = 0; i < poly.length; i++) {
+            const a = poly[i], b = poly[(i + 1) % poly.length];
+            const denom = (p2.x - p1.x) * (b.y - a.y) - (p2.y - p1.y) * (b.x - a.x);
+            if (Math.abs(denom) < 1e-8) continue;
+            const t = ((a.x - p1.x) * (b.y - a.y) - (a.y - p1.y) * (b.x - a.x)) / denom;
+            const u = ((a.x - p1.x) * (p2.y - p1.y) - (a.y - p1.y) * (p2.x - p1.x)) / denom;
+            if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
+              hits.push({ t, x: p1.x + t * (p2.x - p1.x), y: p1.y + t * (p2.y - p1.y) });
+            }
+          }
+          hits.sort((a, b) => a.t - b.t);
+          for (let k = 0; k + 1 < hits.length; k += 2) {
+            if (dist2(hits[k], hits[k + 1]) > 0.35) {
+              paths.push(`M ${fmt(hits[k].x)} ${fmt(hits[k].y)} L ${fmt(hits[k + 1].x)} ${fmt(hits[k + 1].y)}`);
+            }
+          }
+          d += lerp(spacing * 0.52, spacing * 1.48, rampT);
+        }
+      }
+      return paths;
+    }
+
+    function buildContiguousWoodLayers(design, params) {
+      const W = design.W, H = design.H;
+      const res = 3.2;
+      const gw = Math.round(W * res), gh = Math.round(H * res);
+      const numLayers = params.woodLayers;
+      const stepMM = params.woodOffset;
+      const bridgePx = Math.max(2, Math.round(params.bridgeWidth * res));
+
+      const lightBurnPalette = ["#000000", "#0000FF", "#FF0000", "#00E000"];
+      const woodFillPalette = ["#6b4423", "#8d5b32", "#b8824e", "#dfb37c"];
+      const layerNames = ["Wood_L1_Base", "Wood_L2_Stems_Foliage", "Wood_L3_Outer_Petals", "Wood_L4_Inner_Centers"];
+      const layers = [];
+
+      function rasterizeLayer(layerIdx) {
+        const canvas = document.createElement("canvas");
+        canvas.width = gw; canvas.height = gh;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, gw, gh);
+        ctx.strokeStyle = "#fff";
+        ctx.fillStyle = "#fff";
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+
+        const expand = (numLayers - 1 - layerIdx) * stepMM * res;
+
+        function drawPoly(poly) {
+          if (!poly || poly.length < 3) return;
+          ctx.beginPath();
+          ctx.moveTo(poly[0].x * res, poly[0].y * res);
+          for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i].x * res, poly[i].y * res);
+          ctx.closePath();
+          ctx.fill();
+          if (expand * 2 > 0.5) { ctx.lineWidth = expand * 2; ctx.stroke(); }
+        }
+
+        function drawStem(stem) {
+          if (stem.pts.length < 2) return;
+          ctx.beginPath();
+          ctx.moveTo(stem.pts[0].x * res, stem.pts[0].y * res);
+          for (let i = 1; i < stem.pts.length; i++) ctx.lineTo(stem.pts[i].x * res, stem.pts[i].y * res);
+          ctx.lineWidth = Math.max(2.5 * res, stem.thickness * 1.4 * res + expand * 2);
+          ctx.stroke();
+        }
+
+        if (layerIdx === 0) {
+          if (params.woodFrame === "arch") {
+            ctx.beginPath();
+            ctx.roundRect(W * 0.1 * res, H * 0.08 * res, W * 0.8 * res, H * 0.84 * res, [W * 0.4 * res, W * 0.4 * res, 8 * res, 8 * res]);
+            ctx.fill();
+          } else if (params.woodFrame === "ring") {
+            ctx.lineWidth = 6 * res;
+            ctx.beginPath();
+            ctx.arc(W * 0.5 * res, H * 0.48 * res, Math.min(W, H) * 0.42 * res, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        }
+
+        if (layerIdx <= 1) {
+          design.stems.forEach(s => drawStem(s));
+          design.leaves.forEach(l => drawPoly(l.poly));
+          design.buds.forEach(b => { drawPoly(b.petalCone); drawPoly(b.sepalL); drawPoly(b.sepalR); });
+          design.fillers.forEach(f => {
+            ctx.beginPath();
+            ctx.arc(f.cx * res, f.cy * res, (f.r + expand / res) * res, 0, Math.PI * 2);
+            ctx.fill();
+          });
+        }
+        if (layerIdx === 0 || layerIdx === 2) {
+          design.flowers.forEach(fl => {
+            fl.sepals.forEach(s => drawPoly(s.poly));
+            fl.petals.forEach(p => { if (p.ringIndex === 0 || numLayers < 4) drawPoly(p.poly); });
+          });
+        }
+        if (layerIdx === 0 || layerIdx >= 3 || (numLayers === 2 && layerIdx === 1)) {
+          design.flowers.forEach(fl => {
+            fl.petals.forEach(p => { if (p.ringIndex === 1) drawPoly(p.poly); });
+            fl.centerPolys.forEach(cp => drawPoly(cp));
+            ctx.beginPath();
+            ctx.arc(fl.cx * res, fl.cy * res, 4 * fl.scale * res, 0, Math.PI * 2);
+            ctx.fill();
+          });
+        }
+
+        const data = ctx.getImageData(0, 0, gw, gh).data;
+        const bin = new Uint8Array(gw * gh);
+        for (let i = 0; i < gw * gh; i++) bin[i] = data[i * 4] > 127 ? 1 : 0;
+
+        const labels = new Int32Array(gw * gh);
+        const comps = [];
+        let compId = 0;
+        const queue = new Int32Array(gw * gh);
+
+        for (let idx = 0; idx < gw * gh; idx++) {
+          if (bin[idx] === 1 && labels[idx] === 0) {
+            compId++;
+            let head = 0, tail = 0;
+            queue[tail++] = idx;
+            labels[idx] = compId;
+            const pts = [];
+            while (head < tail) {
+              const cur = queue[head++];
+              if (pts.length < 350 && head % 5 === 0) pts.push({ x: cur % gw, y: (cur / gw) | 0 });
+              const nbs = [cur - 1, cur + 1, cur - gw, cur + gw];
+              for (let n = 0; n < 4; n++) {
+                const nb = nbs[n];
+                if (nb >= 0 && nb < gw * gh && bin[nb] === 1 && labels[nb] === 0) {
+                  labels[nb] = compId;
+                  queue[tail++] = nb;
+                }
+              }
+            }
+            if (pts.length === 0) pts.push({ x: idx % gw, y: (idx / gw) | 0 });
+            comps.push({ id: compId, size: tail, pts });
+          }
+        }
+
+        let bridgedCount = 0;
+        if (comps.length > 1) {
+          comps.sort((a, b) => b.size - a.size);
+          const main = comps[0];
+          ctx.strokeStyle = "#fff";
+          ctx.lineWidth = bridgePx;
+          for (let c = 1; c < comps.length; c++) {
+            let bestD = Infinity, bestA = null, bestB = null;
+            for (const p1 of comps[c].pts) {
+              for (const p2 of main.pts) {
+                const d = (p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2;
+                if (d < bestD) { bestD = d; bestA = p1; bestB = p2; }
+              }
+            }
+            if (bestA && bestB) {
+              ctx.beginPath(); ctx.moveTo(bestA.x, bestA.y); ctx.lineTo(bestB.x, bestB.y); ctx.stroke();
+              bridgedCount++;
+            }
+          }
+        }
+
+        const finalData = ctx.getImageData(0, 0, gw, gh).data;
+        const grid = new Uint8Array(gw * gh);
+        for (let i = 0; i < gw * gh; i++) grid[i] = finalData[i * 4] > 127 ? 1 : 0;
+
+        return {
+          id: layerNames[layerIdx] || `Wood_L${layerIdx + 1}`,
+          color: lightBurnPalette[layerIdx % lightBurnPalette.length],
+          woodFill: woodFillPalette[layerIdx % woodFillPalette.length],
+          paths: extractMarchingSquaresContours(grid, gw, gh, res),
+          bridgedCount
+        };
+      }
+
+      for (let l = 0; l < numLayers; l++) layers.push(rasterizeLayer(l));
+      return layers;
+    }
+
+    function extractMarchingSquaresContours(grid, gw, gh, res) {
+      const edges = new Map();
+      const key = (x, y) => (y << 14) | x;
+      for (let y = 0; y < gh - 1; y++) {
+        for (let x = 0; x < gw - 1; x++) {
+          const state = (grid[y * gw + x] << 3) | (grid[y * gw + x + 1] << 2) | (grid[(y + 1) * gw + x + 1] << 1) | grid[(y + 1) * gw + x];
+          if (state === 0 || state === 15) continue;
+          const top = [2 * x + 1, 2 * y], right = [2 * x + 2, 2 * y + 1], bottom = [2 * x + 1, 2 * y + 2], left = [2 * x, 2 * y + 1];
+          const addEdge = (a, b) => {
+            const k = key(a[0], a[1]);
+            if (!edges.has(k)) edges.set(k, []);
+            edges.get(k).push(b);
+          };
+          switch (state) {
+            case 1: addEdge(left, bottom); break;
+            case 2: addEdge(bottom, right); break;
+            case 3: addEdge(left, right); break;
+            case 4: addEdge(right, top); break;
+            case 5: addEdge(left, top); addEdge(right, bottom); break;
+            case 6: addEdge(bottom, top); break;
+            case 7: addEdge(left, top); break;
+            case 8: addEdge(top, left); break;
+            case 9: addEdge(top, bottom); break;
+            case 10: addEdge(top, right); addEdge(bottom, left); break;
+            case 11: addEdge(top, right); break;
+            case 12: addEdge(right, left); break;
+            case 13: addEdge(right, bottom); break;
+            case 14: addEdge(bottom, left); break;
+          }
+        }
+      }
+      const loops = [];
+      for (const [startKey, nextList] of edges.entries()) {
+        while (nextList.length > 0) {
+          const startPt = [(startKey & 0x3FFF), (startKey >> 14)];
+          const loop = [{ x: startPt[0] / (2 * res), y: startPt[1] / (2 * res) }];
+          let cur = nextList.pop(), guard = 0;
+          while (cur && guard++ < 100000) {
+            loop.push({ x: cur[0] / (2 * res), y: cur[1] / (2 * res) });
+            if (cur[0] === startPt[0] && cur[1] === startPt[1]) break;
+            const arr = edges.get(key(cur[0], cur[1]));
+            if (!arr || arr.length === 0) break;
+            cur = arr.pop();
+          }
+          if (loop.length >= 6) {
+            const simp = douglasPeucker(loop, 0.22);
+            if (simp.length >= 4) loops.push(ptsToSmoothSVG(simp, true, 0.4));
+          }
+        }
+      }
+      return loops;
+    }
+
+    function douglasPeucker(pts, eps) {
+      if (pts.length <= 2) return pts;
+      let maxD = 0, idx = 0;
+      const a = pts[0], b = pts[pts.length - 1];
+      const dx = b.x - a.x, dy = b.y - a.y, lenSq = dx * dx + dy * dy;
+      for (let i = 1; i < pts.length - 1; i++) {
+        const d = lenSq === 0 ? dist2(pts[i], a) : Math.hypot(
+          pts[i].x - (a.x + clamp(((pts[i].x - a.x) * dx + (pts[i].y - a.y) * dy) / lenSq, 0, 1) * dx),
+          pts[i].y - (a.y + clamp(((pts[i].x - a.x) * dx + (pts[i].y - a.y) * dy) / lenSq, 0, 1) * dy)
+        );
+        if (d > maxD) { maxD = d; idx = i; }
+      }
+      if (maxD > eps) return douglasPeucker(pts.slice(0, idx + 1), eps).slice(0, -1).concat(douglasPeucker(pts.slice(idx), eps));
+      return [a, b];
+    }
+
+    function buildStemVectorPaths(stem) {
+      const pts = stem.pts;
+      if (!pts || pts.length < 2) return { outlines: [], shading: [] };
+      if (stem.thickness < 0.72) {
+        return { outlines: [ptsToSmoothSVG(pts, false)], shading: [] };
+      }
+      const left = [], right = [], rib1 = [], rib2 = [];
+      const n = pts.length;
+      for (let i = 0; i < n; i++) {
+        const pPrev = pts[Math.max(0, i - 1)];
+        const pNext = pts[Math.min(n - 1, i + 1)];
+        const dx = pNext.x - pPrev.x, dy = pNext.y - pPrev.y;
+        const len = Math.hypot(dx, dy) || 1;
+        const nx = -dy / len, ny = dx / len;
+        const t = i / (n - 1);
+        const halfW = stem.thickness * lerp(0.58, 0.34, t);
+        left.push({ x: pts[i].x + nx * halfW, y: pts[i].y + ny * halfW });
+        right.push({ x: pts[i].x - nx * halfW, y: pts[i].y - ny * halfW });
+        if (stem.thickness >= 1.1) {
+          rib1.push({ x: pts[i].x + nx * halfW * 0.38, y: pts[i].y + ny * halfW * 0.38 });
+          rib2.push({ x: pts[i].x - nx * halfW * 0.32, y: pts[i].y - ny * halfW * 0.32 });
+        }
+      }
+      const outlines = [ptsToSmoothSVG([...left, ...right.reverse()], true, 0.45)];
+      const shading = [];
+      if (rib1.length > 2) shading.push(ptsToSmoothSVG(rib1, false));
+      if (rib2.length > 2) shading.push(ptsToSmoothSVG(rib2, false));
+      return { outlines, shading };
+    }
+
+    function getStriationFractions(poly, minLineGap, maxPerSide = 12) {
+      if (!poly || poly.length < 4) return [];
+      const half = Math.floor(poly.length / 2);
+      let maxW = 0;
+      for (let i = Math.floor(half * 0.25); i <= Math.floor(half * 0.85); i++) {
+        const d = Math.hypot(poly[poly.length - 1 - i].x - poly[i].x, poly[poly.length - 1 - i].y - poly[i].y);
+        if (d > maxW) maxW = d;
+      }
+      const nPerSide = clamp(Math.floor((maxW * 0.44) / Math.max(0.3, minLineGap)), 1, maxPerSide);
+      const ks = [];
+      for (let i = 1; i <= nPerSide; i++) {
+        const k = (i / (nPerSide + 0.6)) * 0.92;
+        ks.push(-k, k);
+      }
+      return ks;
+    }
+
+    function buildVectorLayers(design, params, effectiveMode = params.mode) {
+      const sw = params.strokeWidth;
+
+      if (effectiveMode === "laser_wood") {
+        return buildContiguousWoodLayers(design, params).map(wl => ({
+          id: wl.id, color: wl.color, woodFill: wl.woodFill, paths: wl.paths, strokeWidth: 0.15, bridgedCount: wl.bridgedCount
+        }));
+      }
+
+      if (effectiveMode === "xray") {
+        const isNeg = !!params.xrayBlueprint;
+        const rimColor = isNeg ? "#F1F5F9" : "#181A1E";
+        const striationColor = isNeg ? "#94A3B8" : "#52565E";
+        const coreColor = isNeg ? "#FFFFFF" : "#000000";
+
+        const rimPaths = [], striationPaths = [], corePaths = [];
+        const useStriations = params.xrayStyle !== "stipple";
+        const useStipple = params.xrayStyle === "stipple" || params.xrayStyle === "both";
+        const xDens = (params.xrayDensity !== undefined ? params.xrayDensity : 55) / 100;
+        const xraySpacing = lerp(1.95, 0.55, xDens);
+        const xMinGap = lerp(2.2, 0.48, xDens);
+
+        design.stems.forEach(s => {
+          const sp = buildStemVectorPaths(s);
+          sp.outlines.forEach(o => rimPaths.push(o));
+          if (params.showVeins) sp.shading.forEach(sh => striationPaths.push(sh));
+        });
+
+        design.leaves.forEach(l => {
+          rimPaths.push(ptsToSmoothSVG(l.poly, true));
+          if (params.showVeins && useStriations) {
+            striationPaths.push(ptsToSmoothSVG(l.midrib, false));
+            l.veins.forEach(v => striationPaths.push(ptsToSmoothSVG(v, false)));
+            if (l.midrib.length >= 2) {
+              const half = Math.floor(l.poly.length / 2);
+              for (const k of getStriationFractions(l.poly, xMinGap, 5)) {
+                const rib = [];
+                for (let i = 0; i < half; i++) {
+                  const mp = l.midrib[Math.min(i, l.midrib.length - 1)];
+                  const edgePt = k < 0 ? l.poly[i] : l.poly[l.poly.length - 1 - i];
+                  rib.push({ x: lerp(mp.x, edgePt.x, Math.abs(k)), y: lerp(mp.y, edgePt.y, Math.abs(k)) });
+                }
+                if (rib.length >= 2) striationPaths.push(ptsToSmoothSVG(rib, false));
+              }
+            }
+            const cx = l.poly.reduce((s, p) => s + p.x, 0) / l.poly.length;
+            const cy = l.poly.reduce((s, p) => s + p.y, 0) / l.poly.length;
+            [0.94, 0.88].forEach(k => {
+              const inset = l.poly.map(p => ({ x: lerp(cx, p.x, k), y: lerp(cy, p.y, k) }));
+              striationPaths.push(ptsToSmoothSVG(inset, true));
+            });
+          }
+          if (useStipple) {
+            if (params.showVeins) striationPaths.push(ptsToSmoothSVG(l.midrib, false));
+            const lStart = l.midrib[0] || l.poly[0];
+            const lEnd = l.midrib[l.midrib.length - 1] || l.poly[Math.floor(l.poly.length / 2)];
+            generateGraduatedStipple(l.poly, lStart, lEnd, xraySpacing, true).forEach(st => striationPaths.push(st));
+          }
+        });
+
+        design.buds.forEach(b => {
+          rimPaths.push(ptsToSmoothSVG(b.petalCone, true));
+          rimPaths.push(ptsToSmoothSVG(b.sepalL, true));
+          rimPaths.push(ptsToSmoothSVG(b.sepalR, true));
+
+          const cx = b.petalCone.reduce((s, pt) => s + pt.x, 0) / b.petalCone.length;
+          const cy = b.petalCone.reduce((s, pt) => s + pt.y, 0) / b.petalCone.length;
+          const innerRim = b.petalCone.map(pt => ({ x: lerp(cx, pt.x, 0.92), y: lerp(cy, pt.y, 0.92) }));
+          striationPaths.push(ptsToSmoothSVG(innerRim, true));
+
+          if (params.showVeins && useStriations && b.midrib) {
+            striationPaths.push(ptsToSmoothSVG(b.midrib, false));
+            const half = Math.floor(b.petalCone.length / 2);
+            for (const k of getStriationFractions(b.petalCone, xMinGap * 0.70, 7)) {
+              const rib = [];
+              for (let i = 0; i < half; i++) {
+                const mp = b.midrib[Math.min(i, b.midrib.length - 1)];
+                const edgePt = k < 0 ? b.petalCone[i] : b.petalCone[b.petalCone.length - 1 - i];
+                rib.push({ x: lerp(mp.x, edgePt.x, Math.abs(k)), y: lerp(mp.y, edgePt.y, Math.abs(k)) });
+              }
+              if (rib.length >= 2) striationPaths.push(ptsToSmoothSVG(rib, false));
+            }
+            // Graduated basal UV contour arcs for 3D cupped bud volume
+            if (b.uvGrid) {
+              b.uvGrid.forEach(rib => {
+                if (rib.v <= 0.55) striationPaths.push(ptsToSmoothSVG(rib.pts, false));
+              });
+            }
+            // Inner tangential rim + 3 curved longitudinal vascular veins on each bud sepal
+            [b.sepalL, b.sepalR].forEach(sp => {
+              if (sp.length >= 4) {
+                const scx = sp.reduce((s, pt) => s + pt.x, 0) / sp.length;
+                const scy = sp.reduce((s, pt) => s + pt.y, 0) / sp.length;
+                striationPaths.push(ptsToSmoothSVG(sp.map(pt => ({ x: lerp(scx, pt.x, 0.88), y: lerp(scy, pt.y, 0.88) })), true));
+                for (const w of [0.22, 0.50, 0.78]) {
+                  const mid = { x: lerp(sp[3].x, sp[1].x, w), y: lerp(sp[3].y, sp[1].y, w) };
+                  striationPaths.push(ptsToSmoothSVG([sp[0], mid, sp[2]], false));
+                }
+              }
+            });
+          }
+          if (useStipple) {
+            generateGraduatedStipple(b.petalCone, b.base2D, b.tip2D, xraySpacing * 0.85, true)
+              .forEach(st => striationPaths.push(st));
+            [b.sepalL, b.sepalR].forEach(sp => {
+              generateGraduatedStipple(sp, b.base2D, sp[2] || b.tip2D, xraySpacing * 0.9, true)
+                .forEach(st => striationPaths.push(st));
+            });
+          }
+        });
+
+        design.flowers.forEach(fl => {
+          fl.sepals.forEach(s => {
+            rimPaths.push(ptsToSmoothSVG(s.poly, true));
+            const scx = s.poly.reduce((acc, pt) => acc + pt.x, 0) / s.poly.length;
+            const scy = s.poly.reduce((acc, pt) => acc + pt.y, 0) / s.poly.length;
+            striationPaths.push(ptsToSmoothSVG(s.poly.map(pt => ({ x: lerp(scx, pt.x, 0.92), y: lerp(scy, pt.y, 0.92) })), true));
+            if (params.showVeins && useStriations && s.midrib) {
+              striationPaths.push(ptsToSmoothSVG(s.midrib, false));
+              const half = Math.floor(s.poly.length / 2);
+              for (const k of getStriationFractions(s.poly, xMinGap, 4)) {
+                const rib = [];
+                for (let i = 0; i < half; i++) {
+                  const mp = s.midrib[Math.min(i, s.midrib.length - 1)];
+                  const edgePt = k < 0 ? s.poly[i] : s.poly[s.poly.length - 1 - i];
+                  rib.push({ x: lerp(mp.x, edgePt.x, Math.abs(k)), y: lerp(mp.y, edgePt.y, Math.abs(k)) });
+                }
+                if (rib.length >= 2) striationPaths.push(ptsToSmoothSVG(rib, false));
+              }
+            }
+            if (useStipple) generateGraduatedStipple(s.poly, s.base2D, s.tip2D, xraySpacing * 0.9, true).forEach(st => striationPaths.push(st));
+          });
+
+          fl.petals.forEach(p => {
+            // Outer X-ray rim + subtle tangential inner rim for edge absorption
+            rimPaths.push(ptsToSmoothSVG(p.poly, true));
+            const cx = p.poly.reduce((s, pt) => s + pt.x, 0) / p.poly.length;
+            const cy = p.poly.reduce((s, pt) => s + pt.y, 0) / p.poly.length;
+            const innerRim = p.poly.map(pt => ({ x: lerp(cx, pt.x, 0.94), y: lerp(cy, pt.y, 0.94) }));
+            striationPaths.push(ptsToSmoothSVG(innerRim, true));
+
+            if (params.showVeins && useStriations) {
+              striationPaths.push(ptsToSmoothSVG(p.midrib, false));
+              const half = Math.floor(p.poly.length / 2);
+              for (const k of getStriationFractions(p.poly, xMinGap, 12)) {
+                const rib = [];
+                for (let i = 0; i < half; i++) {
+                  const mp = p.midrib[Math.min(i, p.midrib.length - 1)];
+                  const edgePt = k < 0 ? p.poly[i] : p.poly[p.poly.length - 1 - i];
+                  rib.push({ x: lerp(mp.x, edgePt.x, Math.abs(k)), y: lerp(mp.y, edgePt.y, Math.abs(k)) });
+                }
+                if (rib.length >= 2) striationPaths.push(ptsToSmoothSVG(rib, false));
+              }
+            }
+            if (useStipple) {
+              generateGraduatedStipple(p.poly, p.base2D, p.tip2D, xraySpacing, true).forEach(st => striationPaths.push(st));
+            }
+          });
+
+          // Organic botanical core shading (varied-orientation Fibonacci ovules/seeds & pollen grains)
+          if (fl.species !== "sunflower") {
+            const coreY = fl.species === "tulip" ? fl.cy - 2.6 * fl.scale : fl.cy;
+            const coreR = (fl.species === "tulip" ? 2.4 : fl.species === "peony" ? 3.2 : 3.8) * fl.scale;
+            const numSeeds = fl.species === "peony" ? 12 : fl.species === "tulip" ? 18 : 26;
+            const golden = 137.508 * DEG;
+            for (let n = 1; n <= numSeeds; n++) {
+              const r = coreR * Math.sqrt(n / numSeeds);
+              const a = n * golden;
+              const px = fl.cx + Math.cos(a) * r;
+              const py = coreY + Math.sin(a) * r * 0.82;
+              const h1 = hash2D(px * 1.3, py * 1.7);
+              const h2 = hash2D(py * 2.1, px * 0.9);
+              if (n % 3 === 0) {
+                const pr = lerp(0.08, 0.20, h1) * fl.scale;
+                corePaths.push(circlePath(px, py, pr));
+              } else {
+                const rot = a + (h1 - 0.5) * 1.35;
+                const halfL = lerp(0.08, 0.28, h2) * fl.scale;
+                const dx = Math.cos(rot) * halfL;
+                const dy = Math.sin(rot) * halfL;
+                corePaths.push(`M ${fmt(px - dx)} ${fmt(py - dy)} L ${fmt(px + dx)} ${fmt(py + dy)}`);
+              }
+            }
+          }
+          fl.centerPolys.forEach(cp => corePaths.push(ptsToSmoothSVG(cp, true)));
+          fl.stamens.forEach(st => {
+            const sg = buildStamenGeometry(st, fl);
+            // Put curved filament on striationPaths for dense-center peonies, and rimPaths for open flowers
+            if (fl.species === "peony") {
+              striationPaths.push(ptsToSmoothSVG(sg.filamentPts, false));
+              striationPaths.push(ptsToSmoothSVG(sg.antherPoly, true));
+            } else {
+              rimPaths.push(ptsToSmoothSVG(sg.filamentPts, false));
+              corePaths.push(ptsToSmoothSVG(sg.antherPoly, true));
+              corePaths.push(`M ${fmt(sg.suture[0].x)} ${fmt(sg.suture[0].y)} L ${fmt(sg.suture[1].x)} ${fmt(sg.suture[1].y)}`);
+            }
+          });
+          fl.discFlorets.forEach(df => corePaths.push(circlePath(df.x, df.y, df.r)));
+        });
+
+        design.fillers.forEach(f => {
+          if (f.type === "gypsophila") {
+            f.petals.forEach(pt => {
+              rimPaths.push(ptsToSmoothSVG(pt.poly, true));
+              if (params.showVeins && useStriations) {
+                striationPaths.push(`M ${fmt(pt.vein[0].x)} ${fmt(pt.vein[0].y)} L ${fmt(pt.vein[1].x)} ${fmt(pt.vein[1].y)}`);
+              }
+              if (useStipple) {
+                generateGraduatedStipple(pt.poly, pt.vein[0], pt.vein[1], xraySpacing * 0.95, true)
+                  .forEach(st => striationPaths.push(st));
+              }
+            });
+            if (f.stamens) {
+              f.stamens.forEach(st => {
+                striationPaths.push(`M ${fmt(st.base.x)} ${fmt(st.base.y)} L ${fmt(st.tip.x)} ${fmt(st.tip.y)}`);
+                corePaths.push(circlePath(st.tip.x, st.tip.y, 0.28));
+              });
+            }
+            corePaths.push(circlePath(f.cx, f.cy, f.r * 0.22));
+          } else {
+            rimPaths.push(circlePath(f.cx, f.cy, f.r));
+            striationPaths.push(circlePath(f.cx, f.cy, f.r * 0.85));
+            const circPoly = [];
+            for (let i = 0; i < 12; i++) {
+              const a = (i / 12) * Math.PI * 2;
+              circPoly.push({ x: f.cx + Math.cos(a) * f.r, y: f.cy + Math.sin(a) * f.r });
+            }
+            if (params.showVeins && useStriations) {
+              for (let i = 0; i < 6; i++) {
+                const a = (i / 6) * Math.PI * 2 + 0.25;
+                striationPaths.push(`M ${fmt(f.cx + Math.cos(a) * f.r * 0.2)} ${fmt(f.cy + Math.sin(a) * f.r * 0.2)} L ${fmt(f.cx + Math.cos(a) * f.r * 0.88)} ${fmt(f.cy + Math.sin(a) * f.r * 0.88)}`);
+              }
+            }
+            if (useStipple) {
+              generateGraduatedStipple(circPoly, { x: f.cx, y: f.cy + f.r }, { x: f.cx, y: f.cy - f.r }, xraySpacing * 0.85, true)
+                .forEach(st => striationPaths.push(st));
+            }
+          }
+        });
+
+        return [
+          { id: "XRay_1_Tangential_Rims", color: rimColor, paths: rimPaths, strokeWidth: Math.max(0.16, sw * 0.85), opacity: 0.72 },
+          { id: "XRay_2_Vascular_Striations", color: striationColor, paths: striationPaths, strokeWidth: Math.max(0.12, sw * 0.48), opacity: 0.38 },
+          { id: "XRay_3_Dense_Core", color: coreColor, paths: corePaths, strokeWidth: Math.max(0.16, sw * 0.85), opacity: 0.82 }
+        ].filter(l => l.paths.length > 0);
+      }
+
+      if (effectiveMode === "white_black") {
+        const primaryColor = "#F5F2EB";
+        const secondaryColor = "#D4AF37";
+
+        const outlinePaths = [], veinPaths = [];
+        design.stems.forEach(s => {
+          const sp = buildStemVectorPaths(s);
+          sp.outlines.forEach(o => outlinePaths.push(o));
+          if (params.showVeins) sp.shading.forEach(sh => veinPaths.push(sh));
+        });
+        design.leaves.forEach(l => {
+          outlinePaths.push(ptsToSmoothSVG(l.poly, true));
+          if (params.showVeins) {
+            veinPaths.push(ptsToSmoothSVG(l.midrib, false));
+            l.veins.forEach(v => veinPaths.push(ptsToSmoothSVG(v, false)));
+          }
+        });
+        design.buds.forEach(b => {
+          outlinePaths.push(ptsToSmoothSVG(b.petalCone, true));
+          outlinePaths.push(ptsToSmoothSVG(b.sepalL, true));
+          outlinePaths.push(ptsToSmoothSVG(b.sepalR, true));
+        });
+        design.flowers.forEach(fl => {
+          fl.sepals.forEach(s => outlinePaths.push(ptsToSmoothSVG(s.poly, true)));
+          fl.petals.forEach(p => {
+            outlinePaths.push(ptsToSmoothSVG(p.poly, true));
+            if (params.showVeins) {
+              veinPaths.push(ptsToSmoothSVG(p.midrib, false));
+              p.veins.forEach(v => veinPaths.push(ptsToSmoothSVG(v, false)));
+            }
+          });
+          fl.centerPolys.forEach(cp => outlinePaths.push(ptsToSmoothSVG(cp, true)));
+          fl.stamens.forEach(st => {
+            const sg = buildStamenGeometry(st, fl);
+            outlinePaths.push(ptsToSmoothSVG(sg.filamentPts, false));
+            outlinePaths.push(ptsToSmoothSVG(sg.antherPoly, true));
+            veinPaths.push(`M ${fmt(sg.suture[0].x)} ${fmt(sg.suture[0].y)} L ${fmt(sg.suture[1].x)} ${fmt(sg.suture[1].y)}`);
+          });
+          fl.discFlorets.forEach(df => veinPaths.push(circlePath(df.x, df.y, df.r)));
+        });
+        design.fillers.forEach(f => {
+          if (f.type === "gypsophila") {
+            f.petals.forEach(pt => {
+              outlinePaths.push(ptsToSmoothSVG(pt.poly, true));
+              if (params.showVeins) veinPaths.push(`M ${fmt(pt.vein[0].x)} ${fmt(pt.vein[0].y)} L ${fmt(pt.vein[1].x)} ${fmt(pt.vein[1].y)}`);
+            });
+            if (f.stamens) {
+              f.stamens.forEach(st => {
+                veinPaths.push(`M ${fmt(st.base.x)} ${fmt(st.base.y)} L ${fmt(st.tip.x)} ${fmt(st.tip.y)}`);
+                veinPaths.push(circlePath(st.tip.x, st.tip.y, 0.28));
+              });
+            }
+          } else outlinePaths.push(circlePath(f.cx, f.cy, f.r));
+        });
+
+        const res = [{ id: "L1_Primary_Outlines", color: primaryColor, paths: outlinePaths, strokeWidth: sw }];
+        if (veinPaths.length > 0) res.push({ id: "L2_Anatomy_Veins", color: secondaryColor, paths: veinPaths, strokeWidth: Math.max(0.14, sw * 0.65) });
+        return res;
+      }
+
+      // Halftone Pen Plot (also used as LightBurn vector export when in Photorealistic mode)
+      const palette = [
+        { id: "Pen_1_Key_Outline", color: "#000000" },
+        { id: "Pen_2_Petal_Midtone", color: "#E11D48" },
+        { id: "Pen_3_Petal_Shadow", color: "#9F1239" },
+        { id: "Pen_4_Foliage_Green", color: "#15803D" },
+        { id: "Pen_5_Stem_Sepals", color: "#166534" },
+        { id: "Pen_6_Stamen_Accent", color: "#D97706" }
+      ].slice(0, params.penLayers);
+
+      const buckets = palette.map(p => ({ ...p, paths: [], strokeWidth: sw }));
+      const assign = (idx, d) => buckets[Math.min(idx, buckets.length - 1)].paths.push(d);
+
+      const lightX = Math.sin(params.photoAngle * DEG);
+      const lightY = -Math.cos(params.photoAngle * DEG);
+      const baseSpacing = lerp(2.0, 0.7, params.halftoneDensity / 100);
+
+      design.stems.forEach(s => {
+        const sp = buildStemVectorPaths(s);
+        sp.outlines.forEach(o => assign(4, o));
+        sp.shading.forEach(sh => assign(4, sh));
+      });
+      design.leaves.forEach(l => {
+        assign(3, ptsToSmoothSVG(l.poly, true));
+        assign(4, ptsToSmoothSVG(l.midrib, false));
+        l.veins.forEach(v => assign(4, ptsToSmoothSVG(v, false)));
+
+        const leafStyle = params.halftoneStyle === "uv_contour" ? "crosshatch" : params.halftoneStyle;
+        const leafAng = l.midrib.length >= 2
+          ? Math.atan2(l.midrib[l.midrib.length - 1].y - l.midrib[0].y, l.midrib[l.midrib.length - 1].x - l.midrib[0].x) + 0.55
+          : 0.65;
+        // Dense full-blade graduated hatching + secondary contour ribs so shading occupies the leaf richly
+        const lStart = l.midrib[0] || l.poly[0];
+        const lEnd = l.midrib[l.midrib.length - 1] || l.poly[Math.floor(l.poly.length / 2)];
+        generateHatchPaths({ poly: l.poly }, baseSpacing * 0.65, leafAng, leafStyle, lStart, lEnd)
+          .forEach(h => assign(3, h));
+        if (params.halftoneStyle === "uv_contour") {
+          const cx = l.poly.reduce((s, p) => s + p.x, 0) / l.poly.length;
+          const cy = l.poly.reduce((s, p) => s + p.y, 0) / l.poly.length;
+          [0.74, 0.48].forEach(k => {
+            const inset = l.poly.map(p => ({ x: lerp(cx, p.x, k), y: lerp(cy, p.y, k) }));
+            assign(4, ptsToSmoothSVG(inset, true));
+          });
+        }
+      });
+      design.buds.forEach(b => {
+        assign(1, ptsToSmoothSVG(b.petalCone, true));
+        generateHatchPaths(
+          { poly: b.petalCone, uvGrid: b.uvGrid, base2D: b.base2D, tip2D: b.tip2D },
+          baseSpacing * 0.85,
+          (b.angle || 0) + 0.45,
+          params.halftoneStyle,
+          b.base2D,
+          b.tip2D
+        ).forEach(h => assign(1, h));
+
+        assign(4, ptsToSmoothSVG(b.sepalL, true));
+        assign(4, ptsToSmoothSVG(b.sepalR, true));
+        const sepalStyle = params.halftoneStyle === "uv_contour" ? "parallel" : params.halftoneStyle;
+        [b.sepalL, b.sepalR].forEach(sp => {
+          generateHatchPaths({ poly: sp }, baseSpacing * 0.85, (b.angle || 0) + 0.65, sepalStyle, b.base2D, sp[2] || b.tip2D)
+            .forEach(h => assign(4, h));
+        });
+      });
+      design.flowers.forEach(fl => {
+        fl.sepals.forEach(s => assign(4, ptsToSmoothSVG(s.poly, true)));
+        fl.petals.forEach(p => {
+          assign(0, ptsToSmoothSVG(p.poly, true));
+          const dot = p.normal.x * lightX + p.normal.y * lightY;
+          const shadeFactor = clamp(0.55 - dot * 0.4, 0.2, 1.0);
+          const targetBucket = dot < 0 ? 2 : 1;
+          generateHatchPaths(p, baseSpacing / shadeFactor, 0.45 + p.ringIndex * 0.4, params.halftoneStyle)
+            .forEach(h => assign(targetBucket, h));
+        });
+        fl.centerPolys.forEach(cp => assign(0, ptsToSmoothSVG(cp, true)));
+        fl.stamens.forEach(st => {
+          const sg = buildStamenGeometry(st, fl);
+          assign(5, ptsToSmoothSVG(sg.filamentPts, false));
+          assign(5, ptsToSmoothSVG(sg.antherPoly, true));
+          assign(5, `M ${fmt(sg.suture[0].x)} ${fmt(sg.suture[0].y)} L ${fmt(sg.suture[1].x)} ${fmt(sg.suture[1].y)}`);
+        });
+        fl.discFlorets.forEach(df => assign(5, circlePath(df.x, df.y, df.r)));
+      });
+      const fillerStyle = params.halftoneStyle === "uv_contour" ? "parallel" : params.halftoneStyle;
+      design.fillers.forEach(f => {
+        if (f.type === "gypsophila") {
+          f.petals.forEach(pt => {
+            assign(0, ptsToSmoothSVG(pt.poly, true));
+            assign(1, `M ${fmt(pt.vein[0].x)} ${fmt(pt.vein[0].y)} L ${fmt(pt.vein[1].x)} ${fmt(pt.vein[1].y)}`);
+            const pAng = Math.atan2(pt.vein[1].y - pt.vein[0].y, pt.vein[1].x - pt.vein[0].x) + 0.45;
+            generateHatchPaths({ poly: pt.poly }, baseSpacing * 0.85, pAng, fillerStyle, pt.vein[0], pt.vein[1])
+              .forEach(h => assign(1, h));
+          });
+          if (f.stamens) {
+            f.stamens.forEach(st => {
+              assign(5, `M ${fmt(st.base.x)} ${fmt(st.base.y)} L ${fmt(st.tip.x)} ${fmt(st.tip.y)}`);
+              assign(5, circlePath(st.tip.x, st.tip.y, 0.28));
+            });
+          }
+        } else {
+          assign(5, circlePath(f.cx, f.cy, f.r));
+          const circPoly = [];
+          for (let i = 0; i < 12; i++) {
+            const a = (i / 12) * Math.PI * 2;
+            circPoly.push({ x: f.cx + Math.cos(a) * f.r, y: f.cy + Math.sin(a) * f.r });
+          }
+          generateHatchPaths({ poly: circPoly }, baseSpacing * 0.85, 0.55, fillerStyle, { x: f.cx, y: f.cy + f.r }, { x: f.cx, y: f.cy - f.r })
+            .forEach(h => assign(5, h));
+        }
+      });
+
+      return buckets.filter(b => b.paths.length > 0);
+    }
+
+    function buildRegMarksLayer(W, H) {
+      const m = 8, s = 4, paths = [];
+      [[m, m], [W - m, m], [m, H - m], [W - m, H - m]].forEach(([x, y]) => {
+        paths.push(`M ${fmt(x - s)} ${fmt(y)} L ${fmt(x + s)} ${fmt(y)}`);
+        paths.push(`M ${fmt(x)} ${fmt(y - s)} L ${fmt(x)} ${fmt(y + s)}`);
+        paths.push(circlePath(x, y, s * 0.55));
+      });
+      return { id: "Registration_Marks", color: "#FF8000", paths, strokeWidth: 0.2 };
+    }
+
+    // =========================================================================
+    // 6. STATE, RENDER CONTROLLER & LIGHTBURN EXPORT
+    // =========================================================================
+    const state = {
+      species: "rose",
+      arrangement: "dome",
+      fillerType: "babysbreath",
+      fillerDensity: 60,
+      cameraView: "natural",
+      seed: 4217,
+      plantSize: 100,
+      numFlowers: 5,
+      numBuds: 3,
+      numLeaves: 8,
+      openness: 82,
+      photoAngle: 18,
+      photoStrength: 40,
+      gravitropism: 18,
+      phyllotaxis: 137.5,
+      mode: "photorealistic",
+      photoBackdrop: "dark_studio",
+      colorPalette: "natural",
+      showVeins: true,
+      xrayStyle: "striations",
+      xrayDensity: 55,
+      xrayBlueprint: false,
+      penLayers: 4,
+      halftoneStyle: "uv_contour",
+      halftoneDensity: 65,
+      woodLayers: 4,
+      woodOffset: 1.8,
+      woodFrame: "silhouette",
+      bridgeWidth: 3.2,
+      woodPreview3D: true,
+      canvasW: 210,
+      canvasH: 297,
+      strokeWidth: 0.28,
+      regMarks: true,
+      hiddenLayers: new Set(),
+      zoom: 1,
+      panX: 0,
+      panY: 0,
+      lastLayers: []
+    };
+
+    function renderAll() {
+      const design = generateBotanicalDesign(state);
+      const container = document.getElementById("renderContainer");
+      container.innerHTML = "";
+
+      if (state.mode === "photorealistic" || state.mode === "xray_dither") {
+        const canvas = state.mode === "xray_dither"
+          ? renderXRayRadiographCanvas(design, state)
+          : renderPhotorealisticCanvas(design, state);
+        container.appendChild(canvas);
+
+        // Precompute vector layers for instant LightBurn SVG export
+        const exportLayers = buildVectorLayers(design, state, state.mode === "xray_dither" ? "xray" : "halftone");
+        if (state.regMarks) exportLayers.push(buildRegMarksLayer(state.canvasW, state.canvasH));
+        state.lastLayers = exportLayers;
+
+        updateLayerChips([]);
+        const totalPaths = exportLayers.reduce((s, l) => s + l.paths.length, 0);
+        updateTelemetry(totalPaths, 0);
+        fitZoomIfNeeded();
+        return;
+      }
+
+      const layers = buildVectorLayers(design, state);
+      if (state.regMarks) layers.push(buildRegMarksLayer(state.canvasW, state.canvasH));
+      state.lastLayers = layers;
+
+      let bg = "#FFFFFF";
+      if (state.mode === "white_black") bg = "#111216";
+      else if (state.mode === "xray") bg = state.xrayBlueprint ? "#0a0d12" : "#efeee9";
+      else if (state.mode === "laser_wood" && state.woodPreview3D) bg = "#f3efe6";
+
+      const is3DWood = state.mode === "laser_wood" && state.woodPreview3D;
+      const svgNS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(svgNS, "svg");
+      svg.setAttribute("xmlns", svgNS);
+      svg.setAttribute("width", `${state.canvasW}mm`);
+      svg.setAttribute("height", `${state.canvasH}mm`);
+      svg.setAttribute("viewBox", `0 0 ${state.canvasW} ${state.canvasH}`);
+      svg.style.background = bg;
+
+      if (is3DWood) {
+        const defs = document.createElementNS(svgNS, "defs");
+        defs.innerHTML = `<filter id="woodShadow" x="-10%" y="-10%" width="120%" height="120%"><feDropShadow dx="0.8" dy="1.4" stdDeviation="1.2" flood-color="#000" flood-opacity="0.35"/></filter>`;
+        svg.appendChild(defs);
+      }
+
+      let totalPaths = 0, totalBridged = 0;
+      layers.forEach(layer => {
+        if (layer.bridgedCount) totalBridged += layer.bridgedCount;
+        if (state.hiddenLayers.has(layer.id)) return;
+        const g = document.createElementNS(svgNS, "g");
+        g.setAttribute("id", layer.id);
+        if (is3DWood && layer.woodFill) g.setAttribute("filter", "url(#woodShadow)");
+        totalPaths += layer.paths.length;
+
+        if (is3DWood && layer.woodFill) {
+          layer.paths.forEach(d => {
+            const path = document.createElementNS(svgNS, "path");
+            path.setAttribute("d", d);
+            path.setAttribute("fill", layer.woodFill);
+            path.setAttribute("fill-rule", "evenodd");
+            path.setAttribute("stroke", "#3a2210");
+            path.setAttribute("stroke-width", "0.25");
+            g.appendChild(path);
+          });
+        } else {
+          // Batch subpaths into chunks of 300 for fast DOM rendering & smooth pan/zoom in stipple mode
+          const CHUNK = 300;
+          for (let i = 0; i < layer.paths.length; i += CHUNK) {
+            const path = document.createElementNS(svgNS, "path");
+            path.setAttribute("d", layer.paths.slice(i, i + CHUNK).join(" "));
+            path.setAttribute("fill", "none");
+            path.setAttribute("stroke", layer.color);
+            path.setAttribute("stroke-width", String(layer.strokeWidth));
+            if (layer.opacity !== undefined) path.setAttribute("stroke-opacity", String(layer.opacity));
+            path.setAttribute("stroke-linecap", "round");
+            path.setAttribute("stroke-linejoin", "round");
+            g.appendChild(path);
+          }
+        }
+        svg.appendChild(g);
+      });
+
+      container.appendChild(svg);
+      updateLayerChips(layers);
+      updateTelemetry(totalPaths, totalBridged);
+      fitZoomIfNeeded();
+    }
+
+    function updateLayerChips(layers) {
+      const wrap = document.getElementById("layerChips");
+      wrap.innerHTML = "";
+      if (layers.length === 0) {
+        wrap.innerHTML = `<span style="font-size:11px;color:var(--text-muted)">Photorealistic 3D Shaded View · Export generates LightBurn-ready vector SVG</span>`;
+        return;
+      }
+      layers.forEach(l => {
+        const chip = document.createElement("div");
+        chip.className = "layer-chip" + (state.hiddenLayers.has(l.id) ? " hidden-layer" : "");
+        chip.innerHTML = `<span class="layer-swatch" style="background:${l.woodFill && state.woodPreview3D ? l.woodFill : l.color}"></span><span>${l.id} (${l.paths.length})</span>`;
+        chip.onclick = () => {
+          if (state.hiddenLayers.has(l.id)) state.hiddenLayers.delete(l.id);
+          else state.hiddenLayers.add(l.id);
+          renderAll();
+        };
+        wrap.appendChild(chip);
+      });
+    }
+
+    function updateTelemetry(totalPaths, totalBridged) {
+      document.getElementById("statusSpecies").textContent = `${state.species.toUpperCase()} · ${state.arrangement}`;
+      document.getElementById("statusDimensions").textContent = `${state.canvasW} × ${state.canvasH} mm`;
+      document.getElementById("statusPaths").textContent = `${totalPaths} vector paths`;
+      const islandEl = document.getElementById("statusIslandCheck");
+      islandEl.textContent = state.mode === "laser_wood"
+        ? `0 Isolated Islands ✓ (${totalBridged} auto-bridged) · LightBurn Ready`
+        : "LightBurn SVG Ready ✓";
+    }
+
+    function buildCleanLightBurnSVGString(layersToExport) {
+      let out = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+      out += `<svg xmlns="http://www.w3.org/2000/svg" width="${state.canvasW}mm" height="${state.canvasH}mm" viewBox="0 0 ${state.canvasW} ${state.canvasH}">\n`;
+      layersToExport.forEach(layer => {
+        if (state.hiddenLayers.has(layer.id)) return;
+        const strokeHex = (state.mode === "white_black" && layer.color === "#F5F2EB") ? "#000000" : layer.color;
+        out += `  <g id="${layer.id}">\n`;
+        layer.paths.forEach(d => {
+          out += `    <path d="${d}" fill="none" stroke="${strokeHex}" stroke-width="${layer.strokeWidth}" stroke-linecap="round" stroke-linejoin="round" />\n`;
+        });
+        out += `  </g>\n`;
+      });
+      out += `</svg>\n`;
+      return out;
+    }
+
+    function downloadSVG(filename, content) {
+      const blob = new Blob([content], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function toggleSection(header) { header.parentElement.classList.toggle("collapsed"); }
+
+    function applyTransform() {
+      document.getElementById("renderContainer").style.transform = `translate3d(${state.panX}px, ${state.panY}px, 0) scale(${state.zoom})`;
+    }
+
+    let firstFit = true;
+    function fitZoomIfNeeded() {
+      if (!firstFit) return;
+      firstFit = false;
+      fitToViewport();
+    }
+
+    function fitToViewport() {
+      const stage = document.getElementById("canvasStage");
+      const el = document.querySelector("#renderContainer svg, #renderContainer canvas");
+      if (!stage || !el) return;
+      const rect = stage.getBoundingClientRect();
+      const sw = el.getBoundingClientRect().width / state.zoom || 793;
+      const sh = el.getBoundingClientRect().height / state.zoom || 1122;
+      state.zoom = Math.min((rect.width - 40) / sw, (rect.height - 40) / sh, 1.5);
+      state.panX = 0; state.panY = 0;
+      applyTransform();
+    }
+
+    function bindControls() {
+      const bindRange = (id, key, valId, suffix = "") => {
+        const el = document.getElementById(id);
+        el.addEventListener("input", () => {
+          state[key] = parseFloat(el.value);
+          if (valId) document.getElementById(valId).textContent = el.value + suffix;
+          renderAll();
+        });
+      };
+      const bindSelect = (id, key) => document.getElementById(id).addEventListener("change", e => { state[key] = e.target.value; renderAll(); });
+      const bindCheck = (id, key) => document.getElementById(id).addEventListener("change", e => { state[key] = e.target.checked; renderAll(); });
+
+      bindSelect("species", "species");
+      bindSelect("arrangement", "arrangement");
+      bindSelect("fillerType", "fillerType");
+      bindSelect("cameraView", "cameraView");
+      bindSelect("photoBackdrop", "photoBackdrop");
+      bindSelect("colorPalette", "colorPalette");
+      bindSelect("halftoneStyle", "halftoneStyle");
+      bindSelect("xrayStyle", "xrayStyle");
+      bindSelect("woodFrame", "woodFrame");
+
+      bindRange("fillerDensity", "fillerDensity", "valFillerDensity", "%");
+      bindRange("plantSize", "plantSize", "valPlantSize", "%");
+      bindRange("numFlowers", "numFlowers", "valNumFlowers");
+      bindRange("numBuds", "numBuds", "valNumBuds");
+      bindRange("numLeaves", "numLeaves", "valNumLeaves");
+      bindRange("openness", "openness", "valOpenness", "%");
+      bindRange("photoAngle", "photoAngle", "valPhotoAngle", "°");
+      bindRange("photoStrength", "photoStrength", "valPhotoStrength", "%");
+      bindRange("gravitropism", "gravitropism", "valGravitropism", "%");
+      bindRange("phyllotaxis", "phyllotaxis", "valPhyllotaxis", "°");
+      bindRange("penLayers", "penLayers", "valPenLayers");
+      bindRange("halftoneDensity", "halftoneDensity", "valHalftoneDensity", "%");
+      bindRange("xrayDensity", "xrayDensity", "valXrayDensity", "%");
+      bindRange("woodLayers", "woodLayers", "valWoodLayers");
+      bindRange("woodOffset", "woodOffset", "valWoodOffset");
+      bindRange("bridgeWidth", "bridgeWidth", "valBridgeWidth");
+      bindRange("strokeWidth", "strokeWidth", "valStrokeWidth");
+
+      bindCheck("showVeins", "showVeins");
+      bindCheck("xrayBlueprint", "xrayBlueprint");
+      bindCheck("woodPreview3D", "woodPreview3D");
+      bindCheck("regMarks", "regMarks");
+
+      document.getElementById("seed").addEventListener("change", e => { state.seed = parseInt(e.target.value, 10) || 1; renderAll(); });
+      document.getElementById("canvasSize").addEventListener("change", e => {
+        const [w, h] = e.target.value.split("x").map(Number);
+        state.canvasW = w; state.canvasH = h; firstFit = true; renderAll();
+      });
+
+      document.querySelectorAll(".mode-pill").forEach(pill => {
+        pill.addEventListener("click", () => {
+          document.querySelectorAll(".mode-pill").forEach(p => p.classList.remove("active"));
+          pill.classList.add("active");
+          state.mode = pill.dataset.mode;
+          state.hiddenLayers.clear();
+
+          document.getElementById("panelPhotoOpts").classList.toggle("hidden", state.mode !== "photorealistic");
+          document.getElementById("panelLineOpts").classList.toggle("hidden", !["xray", "xray_dither", "white_black"].includes(state.mode));
+          document.getElementById("panelHalftoneOpts").classList.toggle("hidden", state.mode !== "halftone");
+          document.getElementById("panelWoodOpts").classList.toggle("hidden", state.mode !== "laser_wood");
+
+          const expBtn = document.getElementById("btnExportLayers");
+          if (state.mode === "xray_dither" || state.mode === "photorealistic") {
+            expBtn.textContent = "Export Dither PNG";
+            expBtn.classList.remove("hidden");
+          } else if (state.mode === "halftone" || state.mode === "xray") {
+            expBtn.textContent = "Export Layers";
+            expBtn.classList.remove("hidden");
+          } else {
+            expBtn.classList.add("hidden");
+          }
+          renderAll();
+        });
+      });
+
+      document.getElementById("btnRandomize").addEventListener("click", () => {
+        state.seed = Math.floor(Math.random() * 99999) + 1;
+        document.getElementById("seed").value = state.seed;
+        renderAll();
+      });
+      document.getElementById("btnExportSVG").addEventListener("click", () => {
+        downloadSVG(`floraplot_${state.species}_${state.mode}_${state.seed}.svg`, buildCleanLightBurnSVGString(state.lastLayers));
+      });
+      document.getElementById("btnExportLayers").addEventListener("click", () => {
+        if (state.mode === "xray_dither" || state.mode === "photorealistic") {
+          const canvas = document.querySelector("#renderContainer canvas");
+          if (canvas) {
+            const a = document.createElement("a");
+            a.href = canvas.toDataURL("image/png");
+            a.download = `floraplot_${state.species}_${state.mode}_${state.seed}.png`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          }
+          return;
+        }
+        state.lastLayers.forEach((layer, idx) => {
+          if (state.hiddenLayers.has(layer.id)) return;
+          setTimeout(() => downloadSVG(`floraplot_${layer.id}_${state.seed}.svg`, buildCleanLightBurnSVGString([layer])), idx * 180);
+        });
+      });
+
+      const stage = document.getElementById("canvasStage");
+      let dragging = false, sx = 0, sy = 0, panRaf = 0;
+      stage.addEventListener("mousedown", e => { e.preventDefault(); dragging = true; sx = e.clientX - state.panX; sy = e.clientY - state.panY; });
+      window.addEventListener("mousemove", e => {
+        if (!dragging) return;
+        state.panX = e.clientX - sx;
+        state.panY = e.clientY - sy;
+        if (!panRaf) {
+          panRaf = requestAnimationFrame(() => { panRaf = 0; applyTransform(); });
+        }
+      });
+      window.addEventListener("mouseup", () => { dragging = false; });
+      stage.addEventListener("wheel", e => {
+        e.preventDefault();
+        state.zoom = clamp(state.zoom * (e.deltaY < 0 ? 1.1 : 0.9), 0.2, 5.0);
+        applyTransform();
+      }, { passive: false });
+
+      document.getElementById("btnZoomIn").onclick = () => { state.zoom = clamp(state.zoom * 1.2, 0.2, 5); applyTransform(); };
+      document.getElementById("btnZoomOut").onclick = () => { state.zoom = clamp(state.zoom / 1.2, 0.2, 5); applyTransform(); };
+      document.getElementById("btnZoomFit").onclick = fitToViewport;
+    }
+
+    bindControls();
+    renderAll();
+  </script>
+</body>
+</html>
