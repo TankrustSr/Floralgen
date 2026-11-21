@@ -538,11 +538,11 @@
         </div>
         <div class="section-body">
           <div class="mode-pills" id="modePills">
-            <div class="mode-pill full-span active" data-mode="photorealistic">Photorealistic 3D Botanical</div>
-            <div class="mode-pill" data-mode="halftone">Halftone Pen Plot</div>
+            <div class="mode-pill active" data-mode="photorealistic">Photorealistic 3D Botanical</div>
             <div class="mode-pill" data-mode="white_black">White on Black</div>
             <div class="mode-pill" data-mode="xray">X-Ray Vector (Pen Plot)</div>
             <div class="mode-pill" data-mode="xray_dither">X-Ray Radiograph (Dither)</div>
+            <div class="mode-pill full-span" data-mode="engraving">Macro Ink Engraving (Pen Plot)</div>
           </div>
 
           <div id="panelPhotoOpts" class="control-row" style="gap: 8px; margin-top: 4px;">
@@ -603,32 +603,68 @@
             </label>
           </div>
 
-          <div id="panelHalftoneOpts" class="hidden" style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
+          <div id="panelEngravingOpts" class="hidden" style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
+            <div class="control-row">
+              <label class="control-label">Engraving Framing</label>
+              <select id="engravingZoom">
+                <option value="macro">Macro Close-Up (Hero Bloom &amp; Foliage)</option>
+                <option value="portrait">Botanical Specimen (Tight Crop)</option>
+                <option value="full">Full Arrangement</option>
+              </select>
+            </div>
+            <div class="control-row">
+              <label class="control-label">Ink Shading Style</label>
+              <select id="engravingStyle">
+                <option value="directional">Fine-Liner Contour Engraving</option>
+                <option value="herringbone">Folded Rib Cross-Hatching</option>
+                <option value="stipple_ink">Copperplate Hatch + Stipple</option>
+              </select>
+            </div>
             <div class="control-row">
               <label class="control-label">
-                <span>Pen Color Layers</span>
-                <span class="control-val" id="valPenLayers">4</span>
+                <span>Ink Line Density</span>
+                <span class="control-val" id="valEngravingDensity">68%</span>
               </label>
-              <input type="range" id="penLayers" min="1" max="6" value="4" />
+              <input type="range" id="engravingDensity" min="15" max="100" value="68" />
+            </div>
+            <div class="control-row">
+              <label class="control-label">
+                <span>Shadow Reach / Contrast</span>
+                <span class="control-val" id="valEngravingContrast">65%</span>
+              </label>
+              <input type="range" id="engravingContrast" min="20" max="100" value="65" />
+            </div>
+            <div class="control-row">
+              <label class="control-label">
+                <span>Macro Zoom</span>
+                <span class="control-val" id="valEngravingZoomScale">100%</span>
+              </label>
+              <input type="range" id="engravingZoomScale" min="50" max="220" value="100" />
             </div>
             <div class="grid-2">
               <div class="control-row">
-                <label class="control-label">Halftone Style</label>
-                <select id="halftoneStyle">
-                  <option value="uv_contour">Botanical UV Contour</option>
-                  <option value="crosshatch">Cross-Hatch</option>
-                  <option value="stipple">Mezzotint Stipple</option>
-                  <option value="parallel">Parallel Scan</option>
-                </select>
+                <label class="control-label">
+                  <span>Pan X</span>
+                  <span class="control-val" id="valEngravingPanX">0%</span>
+                </label>
+                <input type="range" id="engravingPanX" min="-100" max="100" value="0" />
               </div>
               <div class="control-row">
                 <label class="control-label">
-                  <span>Shade Density</span>
-                  <span class="control-val" id="valHalftoneDensity">65%</span>
+                  <span>Pan Y</span>
+                  <span class="control-val" id="valEngravingPanY">0%</span>
                 </label>
-                <input type="range" id="halftoneDensity" min="20" max="100" value="65" />
+                <input type="range" id="engravingPanY" min="-100" max="100" value="0" />
               </div>
             </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+              <span style="font-size:10px;color:var(--text-muted);">Shift+Drag canvas to pan crop</span>
+              <button type="button" class="btn" id="btnResetEngravingPan" style="padding:3px 8px;font-size:11px;">Reset Framing</button>
+            </div>
+            <label class="checkbox-row">
+              <span>Opaque Hidden-Line Removal</span>
+              <input type="checkbox" id="engravingHLR" checked />
+            </label>
           </div>
 
           <div id="panelWoodOpts" class="hidden" style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
@@ -909,8 +945,9 @@
 
         const rWaveL = ruffle > 0 ? Math.sin(v * 15 + phase) * ruffle * v : 0;
         const rWaveR = ruffle > 0 ? Math.cos(v * 15 + phase) * ruffle * v : 0;
+        const wrapFactor = goblet ? 0.48 : clamp(1.08 - cupAngle, 0, 0.88) * 0.62;
         const edgeCupZ = goblet ? 0 : (transverseCup * halfW * 0.45 + (v > 0.68 ? curlJit * 2.4 * Math.pow(v - 0.68, 1.5) : 0));
-        const edgeWrapR = goblet ? -transverseCup * halfW * 0.48 : 0;
+        const edgeWrapR = -transverseCup * halfW * wrapFactor;
 
         const l3 = { x: (rCenter + edgeWrapR) * ca + px * halfW * (1 + asym * 0.5), y: (rCenter + edgeWrapR) * sa + py * halfW * (1 + asym * 0.5), z: zCenter + edgeCupZ + rWaveL };
         const r3 = { x: (rCenter + edgeWrapR) * ca - px * halfW * (1 - asym * 0.5), y: (rCenter + edgeWrapR) * sa - py * halfW * (1 - asym * 0.5), z: zCenter + edgeCupZ + rWaveR };
@@ -925,7 +962,7 @@
           const rib = [];
           for (let u = -1; u <= 1; u += 0.25) {
             const uCup = goblet ? 0 : transverseCup * halfW * 0.45 * (u * u);
-            const uWrap = goblet ? -transverseCup * halfW * 0.48 * (u * u) : 0;
+            const uWrap = -transverseCup * halfW * wrapFactor * (u * u);
             const p3 = {
               x: (rCenter + uWrap) * ca + px * halfW * u,
               y: (rCenter + uWrap) * sa + py * halfW * u,
@@ -1002,27 +1039,51 @@
       }
 
       if (species === "rose") {
-        // 26 petals in Fibonacci spiral: tight tall inner heart -> broad reflexed outer guard petals
+        // 26 petals in Fibonacci spiral: deeply cupped embracing inner heart -> broad reflexed outer guard petals
         const total = 26;
         const golden = phyllotaxisDeg * DEG;
         for (let i = 0; i < total; i++) {
           const t = i / (total - 1);
-          const cup = lerp(0.18, 1.30 * openT + 0.22, Math.pow(t, 0.85));
+          const cup = lerp(0.46, 1.32 * openT + 0.24, Math.pow(t, 0.82));
           const p = buildParametricPetal({
-            baseRadius: lerp(1.0, 6.8, t) * scale,
-            baseZ: lerp(-3.6, 2.8, t) * scale,
-            length: lerp(11.5, 22, Math.pow(t, 0.72)) * scale,
-            width: lerp(8.5, 20, Math.pow(t, 0.65)) * scale,
+            baseRadius: lerp(2.0, 7.2, t) * scale,
+            baseZ: lerp(-3.0, 2.8, t) * scale,
+            length: lerp(10.5, 22, Math.pow(t, 0.72)) * scale,
+            width: lerp(9.2, 20, Math.pow(t, 0.65)) * scale,
             angle: i * golden + (rng() - 0.5) * 0.08,
             cupAngle: cup,
-            curlTip: lerp(-0.1, 0.55, t),
-            transverseCup: lerp(0.32, 0.16, t),
+            curlTip: lerp(0.08, 0.55, t),
+            transverseCup: lerp(0.68, 0.18, t),
             ruffle: 0.28 * scale * t,
             heartShape: true,
             yaw, pitch, cx, cy, ringT: t, rng
           });
           p.ringIndex = t < 0.45 ? 1 : 0;
           petals.push(p);
+        }
+        // 7 tightly coiled spiral-scroll crescent petals forming a closed botanical Rose heart
+        const numScrolls = 7;
+        const baseSpin = rng() * Math.PI * 2;
+        for (let s = 0; s < numScrolls; s++) {
+          const u = s / (numScrolls - 1); // 0 = innermost swirl, 1 = outer embracing scroll
+          const startAng = baseSpin + s * 2.28 + (rng() - 0.5) * 0.18;
+          const arcSpan = lerp(2.75, 2.05, u);
+          const rInBase = lerp(0.24, 3.35, Math.pow(u, 1.18)) * scale;
+          const thick = lerp(0.95, 2.45, u) * scale;
+          const zScroll = lerp(-5.8, -3.5, u) * scale;
+          const steps = 12;
+          const outerPts = [], innerPts = [];
+          for (let k = 0; k <= steps; k++) {
+            const ft = k / steps;
+            const a = startAng + ft * arcSpan;
+            const taper = Math.pow(Math.sin(ft * Math.PI), 0.55);
+            const rIn = rInBase * lerp(0.68, 1.24, ft);
+            const rOut = rIn + thick * taper * (1 + 0.12 * Math.sin(ft * Math.PI * 2));
+            const lipZ = zScroll - taper * 0.65 * scale;
+            outerPts.push(project3D({ x: rOut * Math.cos(a), y: rOut * Math.sin(a), z: lipZ }, yaw, pitch, cx, cy, 1));
+            innerPts.push(project3D({ x: rIn * Math.cos(a), y: rIn * Math.sin(a), z: zScroll + 0.45 * scale }, yaw, pitch, cx, cy, 1));
+          }
+          centerPolys.push([...outerPts, ...innerPts.reverse()]);
         }
       } else if (species === "sunflower") {
         // 34 ray florets in 2 staggered whorls
@@ -1042,16 +1103,16 @@
           p.ringIndex = 0;
           petals.push(p);
         }
-        // 144 Vogel Phyllotaxis Disc Florets on a convex dome (strictly inside 9.6*scale discRing)
-        const numDisc = 144;
-        const c = 0.70 * scale;
+        // 240 densely packed Vogel Phyllotaxis Disc Florets filling the convex dome to 9.5*scale
+        const numDisc = 240;
+        const c = 0.58 * scale;
         const golden = phyllotaxisDeg * DEG;
         for (let n = 1; n <= numDisc; n++) {
           const r = c * Math.sqrt(n);
           const theta = n * golden;
           const domeZ = -2.6 * scale * (1 - n / numDisc);
           const pt2 = project3D({ x: r * Math.cos(theta), y: r * Math.sin(theta), z: domeZ }, yaw, pitch, cx, cy, 1);
-          discFlorets.push({ x: pt2.x, y: pt2.y, z: pt2.z, r: lerp(0.42, 0.80, n / numDisc) * scale, t: n / numDisc });
+          discFlorets.push({ x: pt2.x, y: pt2.y, z: pt2.z, r: lerp(0.32, 0.72, Math.pow(n / numDisc, 0.65)) * scale, t: n / numDisc });
         }
         const discRing = [];
         for (let i = 0; i < 28; i++) {
@@ -1060,19 +1121,19 @@
         }
         centerPolys.push(discRing);
       } else if (species === "tulip") {
-        // 6 broad spoon-shaped tepals in 2 overlapping whorls forming a lush rounded Satin Goblet
+        // 6 broad spoon-shaped tepals in 2 overlapping whorls curving directly from the stem into a rounded Satin Goblet
         for (let w = 0; w < 2; w++) {
           for (let i = 0; i < 3; i++) {
             const ang = (i / 3) * Math.PI * 2 + w * (Math.PI / 3) + 0.25;
             const p = buildParametricPetal({
-              baseRadius: (w === 0 ? 2.4 : 1.3) * scale,
-              baseZ: (w === 0 ? 0.6 : -1.2) * scale,
+              baseRadius: (w === 0 ? 0.55 : 0.35) * scale,
+              baseZ: (w === 0 ? 0.4 : -0.6) * scale,
               length: (w === 0 ? 25.5 : 24.5) * scale,
               width: (w === 0 ? 20.5 : 18.5) * scale,
               angle: ang,
               cupAngle: lerp(0.16, w === 0 ? 0.56 : 0.44, openT),
               curlTip: -0.12,
-              transverseCup: 0.44,
+              transverseCup: 0.46,
               ruffle: 0.22 * scale,
               goblet: true,
               yaw, pitch, cx, cy, ringT: w === 0 ? 0.85 : 0.42, rng
@@ -1092,7 +1153,7 @@
           for (let i = 0; i < 3; i++) {
             const ang = (i / 3) * Math.PI * 2 + w * (Math.PI / 3);
             const p = buildParametricPetal({
-              baseRadius: 1.5 * scale,
+              baseRadius: 0.45 * scale,
               length: 26 * scale,
               width: (w === 0 ? 9.2 : 11.2) * scale,
               angle: ang,
@@ -1120,44 +1181,80 @@
           stamens.push({ base, tip, r: 1.4 * scale });
         }
       } else if (species === "orchid") {
+        // Phalaenopsis: 3 outer sepals + 2 broad overlapping lateral wing petals + sculpted 3-lobed labellum & hooded column
         const specs = [
-          { ang: -Math.PI / 2, len: 17, wid: 9.5, cup: 1.18, ring: 0, rt: 0.7 },
-          { ang: Math.PI * 0.28, len: 16, wid: 8.5, cup: 1.18, ring: 0, rt: 0.7 },
-          { ang: Math.PI * 0.72, len: 16, wid: 8.5, cup: 1.18, ring: 0, rt: 0.7 },
-          { ang: -Math.PI * 0.12, len: 19, wid: 18, cup: 1.25, ring: 1, rt: 0.9 },
-          { ang: -Math.PI * 0.88, len: 19, wid: 18, cup: 1.25, ring: 1, rt: 0.9 },
-          { ang: Math.PI / 2, len: 11, wid: 9, cup: 0.82, ring: 1, notch: true, rt: 0.2 }
+          { ang: -Math.PI / 2, len: 18, wid: 11.5, cup: 1.18, ring: 0, rt: 0.7, baseR: 0.35, bz: 1.2 },
+          { ang: Math.PI * 0.28, len: 17, wid: 10.5, cup: 1.18, ring: 0, rt: 0.7, baseR: 0.35, bz: 1.2 },
+          { ang: Math.PI * 0.72, len: 17, wid: 10.5, cup: 1.18, ring: 0, rt: 0.7, baseR: 0.35, bz: 1.2 },
+          { ang: -Math.PI * 0.12, len: 20, wid: 19.5, cup: 1.22, ring: 1, rt: 0.9, baseR: 0.30, bz: 0.2, heart: true },
+          { ang: -Math.PI * 0.88, len: 20, wid: 19.5, cup: 1.22, ring: 1, rt: 0.9, baseR: 0.30, bz: 0.2, heart: true },
+          // 3-lobed Labellum (2 cupped upturned lateral auricles + central forked lip) sitting forward over the center
+          { ang: Math.PI * 0.34, len: 8.4, wid: 6.2, cup: 0.68, ring: 1, rt: 0.28, baseR: 0.20, bz: -1.6, trans: 0.55 },
+          { ang: Math.PI * 0.66, len: 8.4, wid: 6.2, cup: 0.68, ring: 1, rt: 0.28, baseR: 0.20, bz: -1.6, trans: 0.55 },
+          { ang: Math.PI / 2, len: 12.2, wid: 9.8, cup: 0.84, ring: 1, notch: true, rt: 0.18, baseR: 0.12, bz: -2.2, trans: 0.42 }
         ];
         specs.forEach(s => {
           const p = buildParametricPetal({
-            baseRadius: 1.8 * scale,
+            baseRadius: s.baseR * scale,
+            baseZ: s.bz * scale,
             length: s.len * scale,
             width: s.wid * scale,
             angle: s.ang,
-            cupAngle: s.cup * openT + 0.2,
+            cupAngle: s.cup * openT + 0.18,
             curlTip: 0.22,
+            transverseCup: s.trans || 0.22,
             notch: !!s.notch,
+            heartShape: !!s.heart,
             yaw, pitch, cx, cy, ringT: s.rt, rng
           });
           p.ringIndex = s.ring;
           petals.push(p);
         });
-        const colTip = project3D({ x: 0, y: 1.8 * scale, z: -4.5 * scale }, yaw, pitch, cx, cy, 1);
-        const colBase = project3D({ x: 0, y: 0, z: 0 }, yaw, pitch, cx, cy, 1);
-        stamens.push({ base: colBase, tip: colTip, r: 1.9 * scale });
+        // (1) Upper hooded Phalaenopsis Column (anther cap with delicate pointed lower rostellum beak)
+        const colPts3D = [
+          { x: 0.0,   y: -3.25 }, // top dome
+          { x: 1.05,  y: -2.95 },
+          { x: 1.48,  y: -2.05 },
+          { x: 1.28,  y: -1.10 },
+          { x: 0.55,  y: -0.55 },
+          { x: 0.0,   y: -0.05 }, // delicate pointed beak
+          { x: -0.55, y: -0.55 },
+          { x: -1.28, y: -1.10 },
+          { x: -1.48, y: -2.05 },
+          { x: -1.05, y: -2.95 }
+        ];
+        centerPolys.push(colPts3D.map(pt => project3D({ x: pt.x * scale, y: pt.y * scale, z: -3.8 * scale }, yaw, pitch, cx, cy, 1)));
+
+        // (2) Single unified sculpted V-notched bilobed callus crest (no overlapping circles)
+        const callusPts3D = [
+          { x: 0.0,   y: 0.85 },  // central V-cleft saddle notch
+          { x: 0.72,  y: 0.12 },  // right upturned wing peak
+          { x: 1.62,  y: 0.25 },
+          { x: 1.92,  y: 1.05 },  // right cheek
+          { x: 1.48,  y: 2.08 },
+          { x: 0.68,  y: 2.68 },  // rounded chin
+          { x: 0.0,   y: 2.82 },
+          { x: -0.68, y: 2.68 },
+          { x: -1.48, y: 2.08 },
+          { x: -1.92, y: 1.05 },  // left cheek
+          { x: -1.62, y: 0.25 },
+          { x: -0.72, y: 0.12 }   // left upturned wing peak
+        ];
+        centerPolys.push(callusPts3D.map(pt => project3D({ x: pt.x * scale, y: pt.y * scale, z: -4.4 * scale }, yaw, pitch, cx, cy, 1)));
       } else if (species === "peony") {
         const total = 26;
         const golden = phyllotaxisDeg * DEG;
         for (let i = 0; i < total; i++) {
           const t = i / (total - 1);
           const p = buildParametricPetal({
-            baseRadius: lerp(1.4, 6.4, t) * scale,
-            baseZ: lerp(-3.0, 2.5, t) * scale,
-            length: lerp(12.0, 21, Math.pow(t, 0.72)) * scale,
-            width: lerp(9.0, 17.5, t) * scale,
+            baseRadius: lerp(2.4, 6.8, t) * scale,
+            baseZ: lerp(-2.8, 2.5, t) * scale,
+            length: lerp(11.0, 21, Math.pow(t, 0.72)) * scale,
+            width: lerp(9.5, 17.5, t) * scale,
             angle: i * golden,
-            cupAngle: lerp(0.24, 1.24 * openT + 0.18, Math.pow(t, 0.85)),
-            curlTip: lerp(-0.1, 0.25, t),
+            cupAngle: lerp(0.48, 1.26 * openT + 0.20, Math.pow(t, 0.82)),
+            curlTip: lerp(0.05, 0.28, t),
+            transverseCup: lerp(0.64, 0.22, t),
             ruffle: 0.95 * scale,
             heartShape: true,
             yaw, pitch, cx, cy, ringT: t, rng
@@ -1188,23 +1285,49 @@
           p.ringIndex = i % 2;
           petals.push(p);
         }
-        const cap = [];
-        for (let i = 0; i < 16; i++) {
-          const a = (i / 16) * Math.PI * 2;
-          cap.push(project3D({ x: 3.6 * scale * Math.cos(a), y: 3.6 * scale * Math.sin(a), z: -4.2 * scale }, yaw, pitch, cx, cy, 1));
-        }
-        centerPolys.push(cap);
+        // Grounded ovoid seed capsule (ovary) + snugly seated gently scalloped 7-lobed velvety crown
+        const capBody = [];
         for (let i = 0; i < 20; i++) {
           const a = (i / 20) * Math.PI * 2;
-          const base = project3D({ x: 3.6 * scale * Math.cos(a), y: 3.6 * scale * Math.sin(a), z: -1 * scale }, yaw, pitch, cx, cy, 1);
-          const tip = project3D({ x: 6.8 * scale * Math.cos(a), y: 6.8 * scale * Math.sin(a), z: -5.5 * scale }, yaw, pitch, cx, cy, 1);
-          stamens.push({ base, tip, r: 0.72 * scale });
+          capBody.push(project3D({
+            x: 3.25 * scale * Math.cos(a),
+            y: (0.28 + 3.45 * Math.sin(a)) * scale,
+            z: -3.4 * scale
+          }, yaw, pitch, cx, cy, 1));
         }
+        centerPolys.push(capBody);
+        const capCrown = [];
+        const crownLobes = 7;
+        for (let i = 0; i < 42; i++) {
+          const a = (i / 42) * Math.PI * 2;
+          const lobeR = (2.58 + 0.36 * Math.cos(a * crownLobes)) * scale;
+          capCrown.push(project3D({
+            x: lobeR * Math.cos(a),
+            y: (-0.22 + lobeR * 0.90 * Math.sin(a)) * scale,
+            z: -4.0 * scale
+          }, yaw, pitch, cx, cy, 1));
+        }
+        centerPolys.push(capCrown);
+        // 40 multi-tiered radiating stamens forming a lush halo around the capsule (cleanly sorted front/back)
+        const tiers = [
+          { n: 14, r0: 3.4, r1: 5.8, z1: -6.2, rad: 0.68 },
+          { n: 14, r0: 3.7, r1: 7.5, z1: -5.0, rad: 0.72 },
+          { n: 12, r0: 4.0, r1: 8.9, z1: -3.6, rad: 0.74 }
+        ];
+        tiers.forEach((tr, ti) => {
+          for (let i = 0; i < tr.n; i++) {
+            const a = (i / tr.n) * Math.PI * 2 + ti * 0.22 + (rng() - 0.5) * 0.14;
+            const lenVar = lerp(0.88, 1.12, rng());
+            const base = project3D({ x: tr.r0 * scale * Math.cos(a), y: tr.r0 * scale * Math.sin(a), z: -1.4 * scale }, yaw, pitch, cx, cy, 1);
+            const tip = project3D({ x: tr.r1 * lenVar * scale * Math.cos(a), y: tr.r1 * lenVar * scale * Math.sin(a), z: tr.z1 * lenVar * scale }, yaw, pitch, cx, cy, 1);
+            stamens.push({ base, tip, z: (base.z + tip.z) * 0.5, r: tr.rad * scale });
+          }
+        });
       } else if (species === "cherry") {
         for (let i = 0; i < 5; i++) {
           const ang = (i / 5) * Math.PI * 2 - Math.PI / 2;
           const p = buildParametricPetal({
-            baseRadius: 1.6 * scale,
+            baseRadius: 0.45 * scale,
             length: 14.5 * scale,
             width: 11.5 * scale,
             angle: ang,
@@ -3341,8 +3464,938 @@
       return ks;
     }
 
+    function buildEngravingLayers(design, params) {
+      const W = design.W, H = design.H;
+      const sw = params.strokeWidth;
+      const zoomMode = params.engravingZoom || "macro";
+      const style = params.engravingStyle || "directional";
+      const dens = (params.engravingDensity !== undefined ? params.engravingDensity : 68) / 100;
+      const cont = (params.engravingContrast !== undefined ? params.engravingContrast : 65) / 100;
+      const useHLR = params.engravingHLR !== false;
+
+      const pad = Math.min(W, H) * 0.048;
+      const bounds = { minX: pad, maxX: W - pad, minY: pad, maxY: H - pad };
+
+      // 1. Compute Macro / Specimen Framing Transform
+      let srcCx = W * 0.5, srcCy = H * 0.5, zoom = 1.0;
+      const expandBox = (box, pts) => {
+        if (!pts) return;
+        for (let i = 0; i < pts.length; i++) {
+          const p = pts[i];
+          if (p.x < box.minX) box.minX = p.x;
+          if (p.x > box.maxX) box.maxX = p.x;
+          if (p.y < box.minY) box.minY = p.y;
+          if (p.y > box.maxY) box.maxY = p.y;
+        }
+      };
+
+      if (zoomMode === "macro" && design.flowers.length > 0) {
+        let hero = design.flowers[0], bestScore = -1e9;
+        for (const fl of design.flowers) {
+          const dCenter = Math.hypot(fl.cx - W * 0.5, fl.cy - H * 0.46) / Math.max(W, H);
+          const sc = fl.scale * 1.45 - dCenter;
+          if (sc > bestScore) { bestScore = sc; hero = fl; }
+        }
+        const box = { minX: 1e9, maxX: -1e9, minY: 1e9, maxY: -1e9 };
+        hero.petals.forEach(p => expandBox(box, p.poly));
+        hero.sepals.forEach(s => expandBox(box, s.poly));
+        if (box.minX < 1e8) {
+          const bw = Math.max(20, box.maxX - box.minX);
+          const bh = Math.max(20, box.maxY - box.minY);
+          // Frame hero bloom tightly while inviting nearby framing leaves/buds and upper stem
+          const targetW = bw * 1.42;
+          const targetH = bh * 1.56;
+          srcCx = (box.minX + box.maxX) * 0.5;
+          srcCy = (box.minY + box.maxY) * 0.5 + bh * 0.10;
+          zoom = clamp(Math.min((W - pad * 2) * 0.90 / targetW, (H - pad * 2) * 0.90 / targetH), 1.15, 3.4);
+        }
+      } else if (zoomMode === "portrait") {
+        const box = { minX: 1e9, maxX: -1e9, minY: 1e9, maxY: -1e9 };
+        design.flowers.forEach(fl => {
+          fl.petals.forEach(p => expandBox(box, p.poly));
+          fl.sepals.forEach(s => expandBox(box, s.poly));
+        });
+        design.buds.forEach(b => expandBox(box, b.petalCone));
+        design.leaves.forEach(l => expandBox(box, l.poly));
+        design.stems.forEach(s => {
+          if (s.pts && s.pts.length) {
+            const cut = Math.floor(s.pts.length * 0.25);
+            expandBox(box, s.pts.slice(cut));
+          }
+        });
+        if (box.minX < 1e8) {
+          const bw = Math.max(24, box.maxX - box.minX);
+          const bh = Math.max(24, box.maxY - box.minY);
+          srcCx = (box.minX + box.maxX) * 0.5;
+          srcCy = (box.minY + box.maxY) * 0.5;
+          zoom = clamp(Math.min((W - pad * 2) * 0.88 / bw, (H - pad * 2) * 0.88 / bh), 0.95, 2.35);
+        }
+      }
+
+      // Apply user Macro Zoom & Composition Pan offsets
+      const zoomMult = (params.engravingZoomScale !== undefined ? params.engravingZoomScale : 100) / 100;
+      zoom = clamp(zoom * zoomMult, 0.5, 5.5);
+      const panXmm = ((params.engravingPanX || 0) / 100) * (W * 0.65) / Math.max(0.5, zoom);
+      const panYmm = ((params.engravingPanY || 0) / 100) * (H * 0.65) / Math.max(0.5, zoom);
+      srcCx -= panXmm;
+      srcCy -= panYmm;
+
+      const dstCx = W * 0.5, dstCy = H * 0.5;
+      const xf = p => ({ x: (p.x - srcCx) * zoom + dstCx, y: (p.y - srcCy) * zoom + dstCy });
+      const xfPoly = poly => (poly ? poly.map(xf) : []);
+
+      // 2. Pure-Vector Hidden-Line Removal Helpers
+      const makeOccluder = poly => {
+        if (!poly || poly.length < 3) return null;
+        let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+        for (let i = 0; i < poly.length; i++) {
+          const p = poly[i];
+          if (p.x < minX) minX = p.x;
+          if (p.x > maxX) maxX = p.x;
+          if (p.y < minY) minY = p.y;
+          if (p.y > maxY) maxY = p.y;
+        }
+        if (maxX < bounds.minX || minX > bounds.maxX || maxY < bounds.minY || minY > bounds.maxY) return null;
+        return { poly, minX, maxX, minY, maxY };
+      };
+
+      const polyInViewport = poly => {
+        if (!poly || poly.length === 0) return false;
+        let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+        for (let i = 0; i < poly.length; i++) {
+          const p = poly[i];
+          if (p.x < minX) minX = p.x;
+          if (p.x > maxX) maxX = p.x;
+          if (p.y < minY) minY = p.y;
+          if (p.y > maxY) maxY = p.y;
+        }
+        return !(maxX < bounds.minX || minX > bounds.maxX || maxY < bounds.minY || minY > bounds.maxY);
+      };
+
+      const isBlocked = (x, y, occluders) => {
+        if (x < bounds.minX || x > bounds.maxX || y < bounds.minY || y > bounds.maxY) return true;
+        if (!useHLR) return false;
+        for (let i = occluders.length - 1; i >= 0; i--) {
+          const occ = occluders[i];
+          if (x >= occ.minX && x <= occ.maxX && y >= occ.minY && y <= occ.maxY) {
+            if (pointInPoly({ x, y }, occ.poly)) return true;
+          }
+        }
+        return false;
+      };
+
+      const rawPolySVG = (pts, closed) => {
+        let d = `M ${fmt(pts[0].x)} ${fmt(pts[0].y)}`;
+        for (let i = 1; i < pts.length; i++) d += ` L ${fmt(pts[i].x)} ${fmt(pts[i].y)}`;
+        if (closed) d += " Z";
+        return d;
+      };
+
+      const sampleCatmullRom = (pts, closed = false, stepMM = 0.85, tension = 0.45) => {
+        if (!pts || pts.length < 2) return pts ? pts.slice() : [];
+        if (pts.length === 2) {
+          const a = pts[0], b = pts[1];
+          const steps = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / stepMM));
+          const res = [];
+          for (let s = 0; s <= steps; s++) {
+            const t = s / steps;
+            res.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+          }
+          return res;
+        }
+        const n = pts.length;
+        const limit = closed ? n : n - 1;
+        const out = [];
+        for (let i = 0; i < limit; i++) {
+          const p0 = closed ? pts[(i - 1 + n) % n] : pts[Math.max(0, i - 1)];
+          const p1 = pts[i];
+          const p2 = pts[(i + 1) % n];
+          const p3 = closed ? pts[(i + 2) % n] : pts[Math.min(n - 1, i + 2)];
+
+          const cp1x = (!closed && i === 0) ? p1.x + (p2.x - p1.x) / 3 : p1.x + (p2.x - p0.x) * (tension / 3);
+          const cp1y = (!closed && i === 0) ? p1.y + (p2.y - p1.y) / 3 : p1.y + (p2.y - p0.y) * (tension / 3);
+          const cp2x = (!closed && i === n - 2) ? p2.x - (p2.x - p1.x) / 3 : p2.x - (p3.x - p1.x) * (tension / 3);
+          const cp2y = (!closed && i === n - 2) ? p2.y - (p2.y - p1.y) / 3 : p2.y - (p3.y - p1.y) * (tension / 3);
+
+          const chord = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+          const steps = Math.max(2, Math.ceil(chord / stepMM));
+          for (let s = 0; s < steps; s++) {
+            const t = s / steps, mt = 1 - t;
+            const mt2 = mt * mt, t2 = t * t;
+            out.push({
+              x: mt2 * mt * p1.x + 3 * mt2 * t * cp1x + 3 * mt * t2 * cp2x + t2 * t * p2.x,
+              y: mt2 * mt * p1.y + 3 * mt2 * t * cp1y + 3 * mt * t2 * cp2y + t2 * t * p2.y
+            });
+          }
+        }
+        out.push(closed ? pts[0] : pts[n - 1]);
+        return out;
+      };
+
+      const clipPolyline = (pts, occluders, closed = false, smooth = true) => {
+        if (!pts || pts.length < 2) return [];
+        let samples;
+        if (smooth && pts.length > 2) {
+          samples = sampleCatmullRom(pts, closed, 0.85, 0.42);
+        } else {
+          samples = [];
+          const segCount = closed ? pts.length : pts.length - 1;
+          for (let i = 0; i < segCount; i++) {
+            const a = pts[i], b = pts[(i + 1) % pts.length];
+            const len = Math.hypot(b.x - a.x, b.y - a.y);
+            const steps = Math.max(1, Math.ceil(len / 0.85));
+            for (let s = 0; s < steps; s++) {
+              const t = s / steps;
+              samples.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+            }
+          }
+          samples.push(closed ? pts[0] : pts[pts.length - 1]);
+        }
+
+        const vis = new Uint8Array(samples.length);
+        let visCount = 0;
+        for (let i = 0; i < samples.length; i++) {
+          if (!isBlocked(samples[i].x, samples[i].y, occluders)) {
+            vis[i] = 1;
+            visCount++;
+          }
+        }
+        if (visCount === 0) return [];
+        if (visCount === samples.length) {
+          return [smooth && pts.length > 2 ? ptsToSmoothSVG(pts, closed, 0.42) : rawPolySVG(pts, closed)];
+        }
+
+        const out = [];
+        let run = [];
+        const flushRun = () => {
+          if (run.length < 2) { run = []; return; }
+          let totalL = 0;
+          for (let k = 1; k < run.length; k++) totalL += Math.hypot(run[k].x - run[k - 1].x, run[k].y - run[k - 1].y);
+          if (totalL > 0.28) {
+            out.push(smooth && run.length > 3 ? ptsToSmoothSVG(run, false, 0.35) : rawPolySVG(run, false));
+          }
+          run = [];
+        };
+
+        const refineEdge = (a, b, aVis) => {
+          let lo = 0, hi = 1;
+          for (let it = 0; it < 5; it++) {
+            const mid = (lo + hi) * 0.5;
+            const mx = a.x + (b.x - a.x) * mid, my = a.y + (b.y - a.y) * mid;
+            const mVis = !isBlocked(mx, my, occluders);
+            if (mVis === aVis) lo = mid; else hi = mid;
+          }
+          const t = aVis ? lo : hi;
+          return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+        };
+
+        for (let i = 0; i < samples.length - 1; i++) {
+          const a = samples[i], b = samples[i + 1];
+          const vA = vis[i] === 1, vB = vis[i + 1] === 1;
+          if (vA && vB) {
+            if (run.length === 0) run.push(a);
+            run.push(b);
+          } else if (vA && !vB) {
+            if (run.length === 0) run.push(a);
+            run.push(refineEdge(a, b, true));
+            flushRun();
+          } else if (!vA && vB) {
+            run.push(refineEdge(a, b, false));
+            run.push(b);
+          }
+        }
+        flushRun();
+        return out;
+      };
+
+      const lightRad = (params.photoAngle - 90) * DEG;
+      const lx = Math.cos(lightRad), ly = Math.sin(lightRad);
+      const minGap = lerp(1.65, 0.42, dens);
+
+      const samplePolyAt = (pts, t) => {
+        const f = clamp(t, 0, 1) * (pts.length - 1);
+        const i0 = Math.floor(f), i1 = Math.min(pts.length - 1, i0 + 1);
+        const frac = f - i0;
+        return { x: lerp(pts[i0].x, pts[i1].x, frac), y: lerp(pts[i0].y, pts[i1].y, frac) };
+      };
+
+      const samplePetalRib = (poly, midrib, k, v0, v1, steps = 8) => {
+        const half = Math.floor(poly.length / 2);
+        if (half < 2 || !midrib || midrib.length < 2) return [];
+        const leftEdge = poly.slice(0, half + 1);
+        const rightEdge = [poly[0]];
+        for (let i = poly.length - 1; i >= half; i--) rightEdge.push(poly[i]);
+        const edge = k < 0 ? leftEdge : rightEdge;
+        const ak = Math.abs(k);
+        const pts = [];
+        for (let s = 0; s <= steps; s++) {
+          const v = lerp(v0, v1, s / steps);
+          const mp = samplePolyAt(midrib, v);
+          const ep = samplePolyAt(edge, v);
+          pts.push({ x: lerp(mp.x, ep.x, ak), y: lerp(mp.y, ep.y, ak) });
+        }
+        return pts;
+      };
+
+      const measurePolyWidth = poly => {
+        const half = Math.floor(poly.length / 2);
+        let maxW = 0;
+        for (let i = Math.floor(half * 0.2); i <= Math.floor(half * 0.85); i++) {
+          const d = Math.hypot(poly[poly.length - 1 - i].x - poly[i].x, poly[poly.length - 1 - i].y - poly[i].y);
+          if (d > maxW) maxW = d;
+        }
+        return maxW;
+      };
+
+      const emitGraduatedStipple = (poly, basePt, tipPt, spacing, occluders, targetArr) => {
+        const raw = generateGraduatedStipple(poly, basePt, tipPt, spacing, true);
+        for (let i = 0; i < raw.length; i++) {
+          const m = raw[i].match(/^M ([\d.\-]+) ([\d.\-]+) /);
+          if (!m) continue;
+          const x = parseFloat(m[1]), y = parseFloat(m[2]);
+          if (!isBlocked(x, y, occluders)) targetArr.push(raw[i]);
+        }
+      };
+
+      // 3. Assemble Depth-Ordered Scene Items (Back-to-Front)
+      const items = [];
+
+      // (A) Stems — evaluate smooth Catmull-Rom centerline before offsetting rails
+      design.stems.forEach((s, idx) => {
+        if (!s.pts || s.pts.length < 2) return;
+        const rawPts = s.pts.map(xf);
+        const pts = sampleCatmullRom(rawPts, false, 1.35, 0.50);
+        const left = [], right = [];
+        const n = pts.length;
+        for (let i = 0; i < n; i++) {
+          const prev = pts[Math.max(0, i - 1)];
+          const next = pts[Math.min(n - 1, i + 1)];
+          const dx = next.x - prev.x, dy = next.y - prev.y;
+          const len = Math.hypot(dx, dy) || 1;
+          const nx = -dy / len, ny = dx / len;
+          const t = i / (n - 1);
+          const halfW = s.thickness * zoom * lerp(0.58, 0.34, t);
+          left.push({ x: pts[i].x + nx * halfW, y: pts[i].y + ny * halfW });
+          right.push({ x: pts[i].x - nx * halfW, y: pts[i].y - ny * halfW });
+        }
+        const poly = [...left, ...right.slice().reverse()];
+        if (!polyInViewport(poly)) return;
+        items.push({ kind: "stem", idx, left, right, poly, thickness: s.thickness * zoom });
+      });
+
+      // (B) Leaves
+      design.leaves.forEach((l, idx) => {
+        const poly = xfPoly(l.poly);
+        if (!polyInViewport(poly)) return;
+        items.push({ kind: "leaf", idx, poly, midrib: xfPoly(l.midrib), veins: (l.veins || []).map(xfPoly) });
+      });
+
+      // (C) Flower Sepals
+      design.flowers.forEach((fl, fIdx) => {
+        fl.sepals.forEach((s, sIdx) => {
+          const poly = xfPoly(s.poly);
+          if (!polyInViewport(poly)) return;
+          items.push({ kind: "sepal", idx: fIdx * 30 + sIdx, poly, midrib: xfPoly(s.midrib), base2D: xf(s.base2D), tip2D: xf(s.tip2D) });
+        });
+      });
+
+      // (D) Buds
+      design.buds.forEach((b, idx) => {
+        const cone = xfPoly(b.petalCone);
+        const sL = xfPoly(b.sepalL);
+        const sR = xfPoly(b.sepalR);
+        if (!polyInViewport(cone) && !polyInViewport(sL) && !polyInViewport(sR)) return;
+        items.push({ kind: "bud", idx, cone, sL, sR, midrib: xfPoly(b.midrib), base2D: xf(b.base2D), tip2D: xf(b.tip2D) });
+      });
+
+      // (E) Flowers (stemBlock behind petals -> back petals -> stamens/center -> front petals)
+      const sortedFlowers = [...design.flowers].sort((a, b) => a.cy - b.cy);
+      sortedFlowers.forEach((fl, fIdx) => {
+        if (fl.species !== "tulip") {
+          items.push({ kind: "stemBlock", fl });
+        }
+        const petals = fl.petals;
+        const midCut = fl.species === "tulip" ? Math.ceil(petals.length * 0.5) : petals.length;
+        for (let pi = 0; pi < midCut; pi++) {
+          const p = petals[pi];
+          const poly = xfPoly(p.poly);
+          if (!polyInViewport(poly)) continue;
+          items.push({
+            kind: "petal", idx: fIdx * 100 + pi, poly, midrib: xfPoly(p.midrib),
+            base2D: xf(p.base2D), tip2D: xf(p.tip2D), ringIndex: p.ringIndex, shade: p.shade !== undefined ? p.shade : 0.7
+          });
+        }
+        items.push({ kind: "center", idx: fIdx, fl });
+        for (let pi = midCut; pi < petals.length; pi++) {
+          const p = petals[pi];
+          const poly = xfPoly(p.poly);
+          if (!polyInViewport(poly)) continue;
+          items.push({
+            kind: "petal", idx: fIdx * 100 + pi, poly, midrib: xfPoly(p.midrib),
+            base2D: xf(p.base2D), tip2D: xf(p.tip2D), ringIndex: p.ringIndex, shade: p.shade !== undefined ? p.shade : 0.7
+          });
+        }
+      });
+
+      // (F) Fillers
+      design.fillers.forEach((f, idx) => {
+        const c = xf({ x: f.cx, y: f.cy });
+        const r = f.r * zoom;
+        if (c.x + r < bounds.minX || c.x - r > bounds.maxX || c.y + r < bounds.minY || c.y - r > bounds.maxY) return;
+        items.push({ kind: "filler", idx, f, c, r });
+      });
+
+      // 4. Render Front-to-Back with True Vector Hidden-Line Removal
+      const outlinePaths = [];
+      const shadePaths = [];
+      const occluders = [];
+
+      const pushClipped = (pts, closed, target, smooth = true) => {
+        const segs = clipPolyline(pts, occluders, closed, smooth);
+        for (let i = 0; i < segs.length; i++) target.push(segs[i]);
+      };
+
+      const shadeBladeOrPetal = (poly, midrib, base2D, tip2D, idx, extraShadow, isBud = false) => {
+        const maxW = measurePolyWidth(poly);
+        const pLen = Math.hypot(tip2D.x - base2D.x, tip2D.y - base2D.y) || 1;
+        const ax = (tip2D.x - base2D.x) / pLen, ay = (tip2D.y - base2D.y) / pLen;
+        const nx = -ay, ny = ax;
+        const sideLight = nx * lx + ny * ly;
+
+        if (style === "herringbone") {
+          const nRibs = clamp(Math.floor((maxW * 0.46) / (minGap * 2.5)), 2, 7);
+          const ks = [-0.98];
+          for (let i = -nRibs; i <= nRibs; i++) ks.push((i / (nRibs + 0.5)) * 0.90);
+          ks.push(0.98);
+          ks.sort((a, b) => a - b);
+
+          for (let r = 1; r < ks.length - 1; r++) {
+            const ribPts = samplePetalRib(poly, midrib, ks[r], 0.02, 0.98, 9);
+            pushClipped(ribPts, false, shadePaths, true);
+          }
+
+          const dv = clamp((minGap * 0.92) / Math.max(8, pLen), 0.022, 0.11);
+          for (let c = 0; c < ks.length - 1; c++) {
+            const kA = ks[c], kB = ks[c + 1];
+            const kMid = (kA + kB) * 0.5;
+            const sideBias = clamp(-Math.sign(kMid || 0.01) * sideLight * 0.28, -0.22, 0.25);
+            for (let v = 0.03; v < 0.95; v += dv) {
+              const foldDark = (1 - v * 0.88) * lerp(0.55, 1.15, cont) + extraShadow + sideBias;
+              const hJitter = (hash2D(c * 5.3 + idx * 1.9, v * 31.7) - 0.5) * 0.18;
+              if (foldDark + hJitter < 0.30) continue;
+              const v2 = Math.min(0.98, v + dv * 0.52);
+              const pA = samplePetalRib(poly, midrib, kA, v, v, 1)[0];
+              const pB = samplePetalRib(poly, midrib, kB, v2, v2, 1)[0];
+              if (pA && pB && Math.hypot(pB.x - pA.x, pB.y - pA.y) > 0.32) {
+                pushClipped([pA, pB], false, shadePaths, false);
+              }
+            }
+          }
+          return;
+        }
+
+        // Directional Fine-Liner Contour Engraving (& Copperplate Hatch + Stipple)
+        const gap = isBud ? minGap * 0.82 : minGap;
+        const nPerSide = clamp(Math.floor((maxW * 0.48) / gap), 3, 24);
+        for (let i = -nPerSide; i <= nPerSide; i++) {
+          const k = (i / (nPerSide + 0.45)) * 0.94;
+          const ak = Math.abs(k);
+          const sideBias = clamp(-Math.sign(k || 0.01) * sideLight * 0.24, -0.18, 0.22);
+          const centerFold = Math.exp(-ak * ak * 5.0) * 0.14;
+          const edgeCurl = Math.pow(ak, 2.2) * 0.15;
+          const jitter = (hash2D(i * 2.13 + idx * 13.7, ak * 9.3) - 0.5) * 0.24;
+
+          const baseReach = style === "stipple_ink"
+            ? lerp(0.22, 0.58, cont)
+            : lerp(0.28, 0.74, cont);
+          const vEnd = clamp(baseReach + extraShadow + sideBias + centerFold + edgeCurl + jitter, 0.12, 0.94);
+
+          const strokePts = samplePetalRib(poly, midrib, k, 0.01, vEnd, 8);
+          pushClipped(strokePts, false, shadePaths, true);
+
+          // Delicate outer-margin / tip return ticks (like Ginkgo & Peace Lily fine-liner engravings)
+          if (pLen > 9 && hash2D(i * 3.7 + idx * 5.9, 17.3) < lerp(0.45, 0.86, cont)) {
+            const tickJitter = (hash2D(i * 7.1, idx * 2.3) - 0.5) * 0.08;
+            const tickLen = clamp(lerp(0.06, 0.21, cont) * (0.55 + 0.70 * ak) + tickJitter, 0.04, 0.26);
+            const vTopStart = Math.max(vEnd + 0.06, 0.99 - tickLen);
+            if (vTopStart < 0.96) {
+              const tipPts = samplePetalRib(poly, midrib, k, vTopStart, 0.99, 4);
+              pushClipped(tipPts, false, shadePaths, true);
+            }
+          }
+        }
+
+        if (style === "stipple_ink") {
+          emitGraduatedStipple(poly, base2D, tip2D, lerp(1.55, 0.62, dens), occluders, shadePaths);
+        }
+      };
+
+      for (let idx = items.length - 1; idx >= 0; idx--) {
+        const it = items[idx];
+
+        if (it.kind === "petal") {
+          pushClipped(it.poly, true, outlinePaths, true);
+          const extraShadow = (it.ringIndex === 1 ? 0.15 : 0.0) + clamp((0.72 - it.shade) * 0.35, -0.08, 0.20);
+          shadeBladeOrPetal(it.poly, it.midrib, it.base2D, it.tip2D, it.idx, extraShadow, false);
+          const occ = makeOccluder(it.poly);
+          if (occ) occluders.push(occ);
+        } else if (it.kind === "center") {
+          const fl = it.fl;
+          const cxT = xf({ x: fl.cx, y: fl.cy });
+          const drawStamen = st => {
+            const sg = buildStamenGeometry(st, fl);
+            const fil = sg.filamentPts.map(xf);
+            const ant = sg.antherPoly.map(xf);
+            pushClipped(fil, false, outlinePaths, true);
+            pushClipped(ant, true, outlinePaths, true);
+            const sut = [xf(sg.suture[0]), xf(sg.suture[1])];
+            pushClipped(sut, false, shadePaths, false);
+            const occ = makeOccluder(ant);
+            if (occ) occluders.push(occ);
+          };
+          const poppyBackStamens = [];
+          fl.stamens.forEach(st => {
+            if (fl.species === "poppy" && st.base.y < fl.cy + 2.2 * fl.scale) {
+              poppyBackStamens.push(st);
+            } else {
+              drawStamen(st);
+            }
+          });
+
+          // For Rose, Poppy, and Orchid, centerPolys are layered front-to-back with custom shading & occlusion
+          const customCenter = (fl.species === "rose" || fl.species === "poppy" || fl.species === "orchid");
+          const centerOccs = [];
+          if (!customCenter) {
+            fl.centerPolys.forEach(cp => {
+              const cpT = xfPoly(cp);
+              pushClipped(cpT, true, outlinePaths, true);
+              const occ = makeOccluder(cpT);
+              if (occ) centerOccs.push({ occ, poly: cpT });
+            });
+          }
+
+          if (fl.species === "rose" && fl.centerPolys.length > 0) {
+            // Render the 7 tightly coiled Rose heart scrolls from innermost (s=0) outward with exact minGap shading density
+            for (let s = 0; s < fl.centerPolys.length; s++) {
+              const poly = xfPoly(fl.centerPolys[s]);
+              if (poly.length < 6) continue;
+              pushClipped(poly, true, outlinePaths, true);
+              const half = Math.floor(poly.length / 2);
+              const outerLip = poly.slice(0, half);
+              const innerFold = poly.slice(half).reverse();
+              // Compute true arc length of outer lip so line spacing matches surrounding rose petals identically
+              let arcLen = 0;
+              for (let i = 1; i < outerLip.length; i++) {
+                arcLen += Math.hypot(outerLip[i].x - outerLip[i - 1].x, outerLip[i].y - outerLip[i - 1].y);
+              }
+              const nHatch = clamp(Math.round(arcLen / Math.max(0.38, minGap)), 8, 96);
+              for (let k = 1; k < nHatch; k++) {
+                const ft = k / nHatch;
+                const pOut = samplePolyAt(outerLip, ft);
+                const pIn = samplePolyAt(innerFold, ft);
+                const segL = Math.hypot(pOut.x - pIn.x, pOut.y - pIn.y);
+                if (segL < 0.45) continue;
+                const h = hash2D(s * 7.3 + k * 2.1, pIn.x);
+                // Deep dark fold shading tucked against inner scroll wall, fading smoothly to a bright rolled outer lip
+                const reach = clamp(lerp(0.38, 0.78, cont) + (h - 0.5) * 0.22, 0.20, 0.88);
+                const pMid = {
+                  x: lerp(pIn.x, pOut.x, reach * 0.5) + (pOut.y - pIn.y) * 0.06,
+                  y: lerp(pIn.y, pOut.y, reach * 0.5) - (pOut.x - pIn.x) * 0.06
+                };
+                const pEnd = { x: lerp(pIn.x, pOut.x, reach), y: lerp(pIn.y, pOut.y, reach) };
+                pushClipped([pIn, pMid, pEnd], false, shadePaths, true);
+                // Subtle outer-lip return tick on wider scrolls for consistent petal rhythm
+                if (segL > 3.2 && hash2D(k * 3.1, s * 11.7) < lerp(0.35, 0.75, cont)) {
+                  const tStart = Math.max(reach + 0.12, 1 - lerp(0.08, 0.22, cont));
+                  if (tStart < 0.94) {
+                    const pTop0 = { x: lerp(pIn.x, pOut.x, tStart), y: lerp(pIn.y, pOut.y, tStart) };
+                    pushClipped([pTop0, pOut], false, shadePaths, false);
+                  }
+                }
+              }
+              const occ = makeOccluder(poly);
+              if (occ) occluders.push(occ);
+            }
+          } else if (fl.species === "sunflower") {
+            // Organic, tightly interlocking curved botanical seed-scales + fuzzy outer florets (no geometric squares or circles)
+            fl.discFlorets.forEach((df, dfIdx) => {
+              const p = xf(df);
+              if (isBlocked(p.x, p.y, occluders)) return;
+              const dx = p.x - cxT.x, dy = p.y - cxT.y;
+              const dLen = Math.hypot(dx, dy) || 1;
+              const rx = dx / dLen, ry = dy / dLen;
+              const tx = -ry, ty = rx;
+              const h1 = hash2D(dfIdx * 3.7 + fl.cx, df.t * 19.3);
+              const h2 = hash2D(df.t * 31.1, dfIdx * 2.3 + fl.cy);
+              const rr = Math.max(0.38, df.r * zoom * lerp(0.95, 1.32, h1));
+              const shadeDot = -(rx * lx + ry * ly);
+
+              // Softly rounded organic teardrop / cupped seed-scale (curved quadratic arcs, slightly organic)
+              const jitterAng = (h2 - 0.5) * 0.24;
+              const ca = Math.cos(jitterAng), sa = Math.sin(jitterAng);
+              const orx = rx * ca - ry * sa, ory = rx * sa + ry * ca;
+              const otx = -ory, oty = orx;
+
+              const pTip = { x: p.x + orx * rr * 1.15, y: p.y + ory * rr * 1.15 };
+              const pBase = { x: p.x - orx * rr * 0.85, y: p.y - ory * rr * 0.85 };
+              const pCtrlL = { x: p.x + otx * rr * 0.92 + orx * rr * 0.15, y: p.y + oty * rr * 0.92 + ory * rr * 0.15 };
+              const pCtrlR = { x: p.x - otx * rr * 0.92 + orx * rr * 0.15, y: p.y - oty * rr * 0.92 + ory * rr * 0.15 };
+
+              // Curved organic teardrop/cupped seed bud
+              shadePaths.push(
+                `M ${fmt(pBase.x)} ${fmt(pBase.y)} Q ${fmt(pCtrlL.x)} ${fmt(pCtrlL.y)} ${fmt(pTip.x)} ${fmt(pTip.y)} Q ${fmt(pCtrlR.x)} ${fmt(pCtrlR.y)} ${fmt(pBase.x)} ${fmt(pBase.y)}`
+              );
+
+              // Subtle interior fine-liner shadow stroke tucked inside the cupped bud (heavier on shaded dome half)
+              if (shadeDot > -0.35 || df.t > 0.50) {
+                const sSide = (otx * lx + oty * ly) < 0 ? 1 : -1;
+                const pIn0 = { x: lerp(pBase.x, pTip.x, 0.22) + otx * sSide * rr * 0.22, y: lerp(pBase.y, pTip.y, 0.22) + oty * sSide * rr * 0.22 };
+                const pIn1 = { x: lerp(pBase.x, pTip.x, 0.78) + otx * sSide * rr * 0.08, y: lerp(pBase.y, pTip.y, 0.78) + oty * sSide * rr * 0.08 };
+                shadePaths.push(`M ${fmt(pIn0.x)} ${fmt(pIn0.y)} L ${fmt(pIn1.x)} ${fmt(pIn1.y)}`);
+              }
+
+              // Outer ring open tubular florets (delicate fuzzy forked pollen tips crowning the rim like a real sunflower)
+              if (df.t > 0.76) {
+                const fLen = rr * lerp(0.55, 0.95, h2);
+                const f1 = { x: pTip.x + (orx * 0.8 + otx * 0.45) * fLen, y: pTip.y + (ory * 0.8 + oty * 0.45) * fLen };
+                const f2 = { x: pTip.x + (orx * 0.8 - otx * 0.45) * fLen, y: pTip.y + (ory * 0.8 - oty * 0.45) * fLen };
+                shadePaths.push(`M ${fmt(pTip.x)} ${fmt(pTip.y)} L ${fmt(f1.x)} ${fmt(f1.y)} M ${fmt(pTip.x)} ${fmt(pTip.y)} L ${fmt(f2.x)} ${fmt(f2.y)}`);
+              }
+            });
+          } else if (fl.species === "poppy" && fl.centerPolys.length >= 2) {
+            // (1) Scalloped 7-lobed velvety stigmatic crown on TOP of the capsule
+            const crown = xfPoly(fl.centerPolys[1]);
+            pushClipped(crown, true, outlinePaths, true);
+            const ccx = crown.reduce((s, p) => s + p.x, 0) / crown.length;
+            const ccy = crown.reduce((s, p) => s + p.y, 0) / crown.length;
+            const cRad = crown.reduce((m, p) => Math.max(m, Math.hypot(p.x - ccx, p.y - ccy)), 1);
+            // Soft velvety lobe-crease shadows & fuzzy micro-stipple on the crown cushion
+            for (let i = 0; i < 7; i++) {
+              const a = ((i + 0.5) / 7) * Math.PI * 2;
+              const p0 = { x: ccx + Math.cos(a) * cRad * 0.24, y: ccy + Math.sin(a) * cRad * 0.22 };
+              const p1 = { x: ccx + Math.cos(a) * cRad * 0.66, y: ccy + Math.sin(a) * cRad * 0.62 };
+              pushClipped([p0, p1], false, shadePaths, false);
+            }
+            const golden = 137.508 * DEG;
+            const nCrownStip = Math.round(lerp(55, 110, dens));
+            for (let n = 1; n <= nCrownStip; n++) {
+              const t = n / nCrownStip;
+              const r = cRad * 0.86 * Math.sqrt(t);
+              const a = n * golden;
+              const px = ccx + Math.cos(a) * r, py = ccy + Math.sin(a) * r * 0.92;
+              if (!pointInPoly({ x: px, y: py }, crown) || isBlocked(px, py, occluders)) continue;
+              const sDot = -((Math.cos(a) * lx + Math.sin(a) * ly));
+              const h = hash2D(px * 1.9, py * 2.7);
+              if (t < 0.55 && h > lerp(0.28, 0.72, clamp((sDot + 1) * 0.5, 0, 1))) continue;
+              const rot = a + (h - 0.5) * 0.8;
+              const hl = lerp(0.14, 0.34, h);
+              shadePaths.push(`M ${fmt(px - Math.cos(rot) * hl)} ${fmt(py - Math.sin(rot) * hl)} L ${fmt(px + Math.cos(rot) * hl)} ${fmt(py + Math.sin(rot) * hl)}`);
+            }
+            const crownOcc = makeOccluder(crown);
+            if (crownOcc) occluders.push(crownOcc);
+
+            // (2) Ovoid seed capsule body (ovary) occluded beneath the crown, with fine upward-sweeping bristly hairs
+            const body = xfPoly(fl.centerPolys[0]);
+            pushClipped(body, true, outlinePaths, true);
+            const bcx = body.reduce((s, p) => s + p.x, 0) / body.length;
+            const bcy = body.reduce((s, p) => s + p.y, 0) / body.length;
+            const bRad = body.reduce((m, p) => Math.max(m, Math.hypot(p.x - bcx, p.y - bcy)), 1);
+            const nHairs = Math.round(lerp(45, 95, dens));
+            for (let n = 1; n <= nHairs; n++) {
+              const t = n / nHairs;
+              const r = bRad * 0.92 * Math.sqrt(t);
+              const a = n * golden;
+              const px = bcx + Math.cos(a) * r * 0.92, py = bcy + Math.sin(a) * r;
+              if (!pointInPoly({ x: px, y: py }, body) || isBlocked(px, py, occluders)) continue;
+              const h = hash2D(px * 2.3, py * 1.7);
+              const sideX = (px - bcx) / Math.max(1, bRad);
+              // Upward-sweeping curved ovary bristle hugging the rounded barrel curvature
+              const bristleL = lerp(0.55, 1.35, h) * Math.min(1.5, zoom * 0.65);
+              const pTop = { x: px + sideX * bristleL * 0.28, y: py - bristleL };
+              pushClipped([{ x: px, y: py }, pTop], false, shadePaths, false);
+            }
+            const bodyOcc = makeOccluder(body);
+            if (bodyOcc) occluders.push(bodyOcc);
+            // Now render back & side stamens cleanly occluded behind the grounded capsule
+            poppyBackStamens.forEach(drawStamen);
+          } else if (fl.species === "orchid" && fl.centerPolys.length >= 2) {
+            // Helper: shade a sculpted orchid center form with exact minGap-consistent longitudinal contour lines
+            const shadeOrchidPart = (poly, seedOff, bottomHeavy = true) => {
+              let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+              poly.forEach(p => {
+                if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+                if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+              });
+              const pw = Math.max(1, maxX - minX);
+              const ph = Math.max(1, maxY - minY);
+              const stepX = Math.max(0.40, minGap);
+              const nCols = clamp(Math.floor(pw / stepX), 4, 40);
+              for (let i = 1; i < nCols; i++) {
+                const u = i / nCols;
+                const x = lerp(minX, maxX, u);
+                // Intersect vertical line x with polygon edges
+                const ys = [];
+                for (let e = 0; e < poly.length; e++) {
+                  const a = poly[e], b = poly[(e + 1) % poly.length];
+                  if ((a.x <= x && b.x > x) || (b.x <= x && a.x > x)) {
+                    const t = (x - a.x) / (b.x - a.x);
+                    ys.push(a.y + (b.y - a.y) * t);
+                  }
+                }
+                if (ys.length < 2) continue;
+                ys.sort((a, b) => a - b);
+                const yTop = ys[0], yBot = ys[ys.length - 1];
+                const span = yBot - yTop;
+                if (span < 0.45) continue;
+                const h = hash2D(i * 3.7 + seedOff, x);
+                const edgeBias = Math.abs(u - 0.5) * 0.45; // denser/longer along curved side flanks
+                const reach = clamp(lerp(0.32, 0.72, cont) + edgeBias + (h - 0.5) * 0.20, 0.18, 0.92);
+                const curveX = (u - 0.5) * ph * 0.08;
+                if (bottomHeavy) {
+                  // Shade up from the deep lower chin/throat fold, leaving upper cheekbones luminous
+                  const yEnd = lerp(yBot, yTop, reach);
+                  pushClipped([
+                    { x, y: yBot },
+                    { x: x + curveX, y: lerp(yBot, yEnd, 0.5) },
+                    { x, y: yEnd }
+                  ], false, shadePaths, true);
+                } else {
+                  // Hooded column: shade up from the pointed lower beak & flanks, leaving top dome bright
+                  const yEnd = lerp(yBot, yTop, reach * 0.85);
+                  pushClipped([
+                    { x, y: yBot },
+                    { x: x - curveX, y: lerp(yBot, yEnd, 0.5) },
+                    { x, y: yEnd }
+                  ], false, shadePaths, true);
+                }
+              }
+            };
+
+            // (1) Sculpted V-notched bilobed callus crest in FRONT (zero overlapping circles)
+            const callus = xfPoly(fl.centerPolys[1]);
+            pushClipped(callus, true, outlinePaths, true);
+            // Central V-cleft saddle crease
+            if (callus.length >= 7) {
+              const pNotch = callus[0], pChin = callus[6];
+              pushClipped([pNotch, { x: lerp(pNotch.x, pChin.x, 0.58), y: lerp(pNotch.y, pChin.y, 0.58) }], false, shadePaths, false);
+            }
+            shadeOrchidPart(callus, 13.7, true);
+            // Delicate Phalaenopsis throat leopard speckles inside the callus
+            const ccx = callus.reduce((s, p) => s + p.x, 0) / callus.length;
+            const ccy = callus.reduce((s, p) => s + p.y, 0) / callus.length;
+            const cRad = callus.reduce((m, p) => Math.max(m, Math.hypot(p.x - ccx, p.y - ccy)), 1);
+            const golden = 137.508 * DEG;
+            for (let n = 1; n <= 16; n++) {
+              const r = cRad * 0.72 * Math.sqrt(n / 16);
+              const a = n * golden;
+              const px = ccx + Math.cos(a) * r, py = ccy + Math.sin(a) * r;
+              if (pointInPoly({ x: px, y: py }, callus) && !isBlocked(px, py, occluders)) {
+                shadePaths.push(`M ${fmt(px - 0.16)} ${fmt(py - 0.12)} L ${fmt(px + 0.16)} ${fmt(py + 0.12)}`);
+              }
+            }
+            const callusOcc = makeOccluder(callus);
+            if (callusOcc) occluders.push(callusOcc);
+
+            // (2) Upper hooded column (anther cap with pointed beak) cleanly occluded behind the callus
+            const col = xfPoly(fl.centerPolys[0]);
+            pushClipped(col, true, outlinePaths, true);
+            shadeOrchidPart(col, 41.3, false);
+            const colOcc = makeOccluder(col);
+            if (colOcc) occluders.push(colOcc);
+          } else if (fl.species !== "tulip") {
+            // Delicate organic pistil/ovule stippling layered naturally over the meeting petal bases (no white cutout!)
+            const coreR = (fl.species === "cherry" || fl.species === "lily" ? 2.4 : 2.8) * fl.scale * zoom;
+            const numSeeds = Math.round(lerp(18, 38, dens));
+            const golden = 137.508 * DEG;
+            for (let n = 1; n <= numSeeds; n++) {
+              const t = n / numSeeds;
+              const r = coreR * Math.sqrt(t);
+              const a = n * golden;
+              const px = cxT.x + Math.cos(a) * r;
+              const py = cxT.y + Math.sin(a) * r * 0.86;
+              if (isBlocked(px, py, occluders)) continue;
+              const h1 = hash2D(px * 1.4, py * 1.9);
+              const rot = a + (h1 - 0.5) * 0.9;
+              const hl = lerp(0.20, 0.52, h1) * Math.min(1.3, zoom * 0.6);
+              shadePaths.push(`M ${fmt(px - Math.cos(rot) * hl)} ${fmt(py - Math.sin(rot) * hl)} L ${fmt(px + Math.cos(rot) * hl)} ${fmt(py + Math.sin(rot) * hl)}`);
+            }
+          }
+
+          // Now push centerPolys into occluders so petals & stems behind the disc/pod/column are cleanly occluded
+          centerOccs.forEach(c => occluders.push(c.occ));
+        } else if (it.kind === "stemBlock") {
+          // Runs AFTER all petals of this flower and BEFORE stems: blocks stem tips from poking through the floral center
+          const fl = it.fl;
+          const cxT = xf({ x: fl.cx, y: fl.cy });
+          const br = 3.8 * fl.scale * zoom;
+          const bPoly = [];
+          for (let i = 0; i < 14; i++) {
+            const a = (i / 14) * Math.PI * 2;
+            bPoly.push({ x: cxT.x + Math.cos(a) * br, y: cxT.y + Math.sin(a) * br });
+          }
+          const bOcc = makeOccluder(bPoly);
+          if (bOcc) occluders.push(bOcc);
+        } else if (it.kind === "bud") {
+          // Sepals overlap lower bud cone
+          [it.sL, it.sR].forEach(sp => {
+            if (sp.length < 3) return;
+            pushClipped(sp, true, outlinePaths, true);
+            if (sp.length >= 4) {
+              for (const w of [0.24, 0.50, 0.76]) {
+                const mid = { x: lerp(sp[3].x, sp[1].x, w), y: lerp(sp[3].y, sp[1].y, w) };
+                pushClipped([sp[0], mid, sp[2]], false, shadePaths, true);
+              }
+            }
+            const occ = makeOccluder(sp);
+            if (occ) occluders.push(occ);
+          });
+          pushClipped(it.cone, true, outlinePaths, true);
+          shadeBladeOrPetal(it.cone, it.midrib, it.base2D, it.tip2D, it.idx + 700, 0.12, true);
+          const occ = makeOccluder(it.cone);
+          if (occ) occluders.push(occ);
+        } else if (it.kind === "sepal") {
+          pushClipped(it.poly, true, outlinePaths, true);
+          shadeBladeOrPetal(it.poly, it.midrib, it.base2D, it.tip2D, it.idx + 900, 0.16, true);
+          const occ = makeOccluder(it.poly);
+          if (occ) occluders.push(occ);
+        } else if (it.kind === "leaf") {
+          pushClipped(it.poly, true, outlinePaths, true);
+          if (it.midrib.length >= 2) pushClipped(it.midrib, false, outlinePaths, true);
+
+          const half = Math.floor(it.poly.length / 2);
+          if (half >= 3 && it.midrib.length >= 2) {
+            const lStart = it.midrib[0], lEnd = it.midrib[it.midrib.length - 1];
+            const lLen = Math.hypot(lEnd.x - lStart.x, lEnd.y - lStart.y) || 1;
+            const ax = (lEnd.x - lStart.x) / lLen, ay = (lEnd.y - lStart.y) / lLen;
+            const nx = -ay, ny = ax;
+            const shadowSign = (nx * lx + ny * ly) >= 0 ? -1 : 1;
+
+            if (style === "herringbone") {
+              shadeBladeOrPetal(it.poly, it.midrib, lStart, lEnd, it.idx + 500, 0.08, false);
+            } else {
+              // Sweeping fine-liner lateral blade engraving (Peace Lily / Thistle / Folded Leaf)
+              const leftEdge = it.poly.slice(0, half + 1);
+              const rightEdge = [it.poly[0]];
+              for (let i = it.poly.length - 1; i >= half; i--) rightEdge.push(it.poly[i]);
+
+              const vStep = clamp((minGap * 0.92) / Math.max(10, lLen), 0.018, 0.085);
+              for (let v = 0.04; v < 0.95; v += vStep) {
+                const mp = samplePolyAt(it.midrib, v);
+                const vEdge = Math.min(0.98, v + 0.15);
+                for (const side of [-1, 1]) {
+                  const edge = side < 0 ? leftEdge : rightEdge;
+                  const ep = samplePolyAt(edge, vEdge);
+                  const isShaded = side === shadowSign;
+                  const h = hash2D(v * 37.3 + it.idx * 7.1, side * 11.3);
+                  const ctrl = {
+                    x: lerp(mp.x, ep.x, 0.45) - ax * lLen * 0.03,
+                    y: lerp(mp.y, ep.y, 0.45) - ay * lLen * 0.03
+                  };
+                  const evalQuad = t => {
+                    const mt = 1 - t;
+                    return {
+                      x: mt * mt * mp.x + 2 * mt * t * ctrl.x + t * t * ep.x,
+                      y: mt * mt * mp.y + 2 * mt * t * ctrl.y + t * t * ep.y
+                    };
+                  };
+
+                  if (isShaded) {
+                    const uEnd = clamp(lerp(0.62, 0.97, cont) + (h - 0.5) * 0.24, 0.42, 0.98);
+                    const stroke = [];
+                    for (let s = 0; s <= 5; s++) stroke.push(evalQuad((s / 5) * uEnd));
+                    pushClipped(stroke, false, shadePaths, true);
+                  } else {
+                    const uRoot = clamp(lerp(0.18, 0.44, cont) + (h - 0.5) * 0.18, 0.10, 0.52);
+                    const rootStroke = [];
+                    for (let s = 0; s <= 4; s++) rootStroke.push(evalQuad((s / 4) * uRoot));
+                    pushClipped(rootStroke, false, shadePaths, true);
+                    if (h > 0.35) {
+                      const uTip = clamp(1.0 - lerp(0.12, 0.28, cont) * (0.6 + 0.6 * h), uRoot + 0.14, 0.92);
+                      if (uTip < 0.96) {
+                        pushClipped([evalQuad(uTip), evalQuad(0.98)], false, shadePaths, false);
+                      }
+                    }
+                  }
+                }
+              }
+              if (style === "stipple_ink") {
+                emitGraduatedStipple(it.poly, lStart, lEnd, lerp(1.6, 0.68, dens), occluders, shadePaths);
+              }
+            }
+          }
+          const occ = makeOccluder(it.poly);
+          if (occ) occluders.push(occ);
+        } else if (it.kind === "stem") {
+          pushClipped(it.left, false, outlinePaths, true);
+          pushClipped(it.right, false, outlinePaths, true);
+          const sFirst = it.left[0], sLast = it.left[it.left.length - 1];
+          const sdx = sLast.x - sFirst.x, sdy = sLast.y - sFirst.y;
+          const slen = Math.hypot(sdx, sdy) || 1;
+          const snx = -sdy / slen, sny = sdx / slen;
+          const shadowLeft = (snx * lx + sny * ly) < 0;
+          const nHatch = clamp(Math.floor(it.thickness / Math.max(0.55, minGap * 1.1)), 1, 4);
+          for (let h = 0; h < nHatch; h++) {
+            const frac = lerp(0.14, 0.52, (h + 0.5) / (nHatch + 0.4));
+            const u = shadowLeft ? frac : 1 - frac;
+            const rib = it.left.map((lp, k) => ({
+              x: lerp(lp.x, it.right[k].x, u),
+              y: lerp(lp.y, it.right[k].y, u)
+            }));
+            pushClipped(rib, false, shadePaths, true);
+          }
+          const occ = makeOccluder(it.poly);
+          if (occ) occluders.push(occ);
+        } else if (it.kind === "filler") {
+          const f = it.f;
+          if (f.type === "gypsophila") {
+            f.petals.forEach(pt => {
+              const poly = xfPoly(pt.poly);
+              pushClipped(poly, true, outlinePaths, true);
+              pushClipped([xf(pt.vein[0]), xf(pt.vein[1])], false, shadePaths, false);
+              const occ = makeOccluder(poly);
+              if (occ) occluders.push(occ);
+            });
+            if (f.stamens) {
+              f.stamens.forEach(st => {
+                pushClipped([xf(st.base), xf(st.tip)], false, shadePaths, false);
+              });
+            }
+          } else {
+            const circ = [];
+            for (let i = 0; i < 14; i++) {
+              const a = (i / 14) * Math.PI * 2;
+              circ.push({ x: it.c.x + Math.cos(a) * it.r, y: it.c.y + Math.sin(a) * it.r });
+            }
+            pushClipped(circ, true, outlinePaths, true);
+            // Crescent shadow arcs on shaded side of berry
+            const shAng = Math.atan2(-ly, -lx);
+            for (let k = 0; k < 3; k++) {
+              const rr = it.r * lerp(0.84, 0.52, k / 2.5);
+              const arc = [];
+              for (let s = -4; s <= 4; s++) {
+                const a = shAng + (s / 4) * lerp(1.25, 0.72, k / 2.5);
+                arc.push({ x: it.c.x + Math.cos(a) * rr, y: it.c.y + Math.sin(a) * rr });
+              }
+              pushClipped(arc, false, shadePaths, true);
+            }
+            const occ = makeOccluder(circ);
+            if (occ) occluders.push(occ);
+          }
+        }
+      }
+
+      return [
+        { id: "Engraving_1_Key_Outlines", color: "#141414", paths: outlinePaths, strokeWidth: Math.max(0.18, sw * 1.15) },
+        { id: "Engraving_2_Contour_Shading", color: "#262626", paths: shadePaths, strokeWidth: Math.max(0.12, sw * 0.68) }
+      ].filter(l => l.paths.length > 0);
+    }
+
     function buildVectorLayers(design, params, effectiveMode = params.mode) {
       const sw = params.strokeWidth;
+
+      if (effectiveMode === "engraving") {
+        return buildEngravingLayers(design, params);
+      }
 
       if (effectiveMode === "laser_wood") {
         return buildContiguousWoodLayers(design, params).map(wl => ({
@@ -3528,13 +4581,10 @@
           fl.centerPolys.forEach(cp => corePaths.push(ptsToSmoothSVG(cp, true)));
           fl.stamens.forEach(st => {
             const sg = buildStamenGeometry(st, fl);
-            // Put curved filament on striationPaths for dense-center peonies, and rimPaths for open flowers
-            if (fl.species === "peony") {
-              striationPaths.push(ptsToSmoothSVG(sg.filamentPts, false));
-              striationPaths.push(ptsToSmoothSVG(sg.antherPoly, true));
-            } else {
-              rimPaths.push(ptsToSmoothSVG(sg.filamentPts, false));
-              corePaths.push(ptsToSmoothSVG(sg.antherPoly, true));
+            // Keep stamen filament and anther together on XRay_3_Dense_Core
+            corePaths.push(ptsToSmoothSVG(sg.filamentPts, false));
+            corePaths.push(ptsToSmoothSVG(sg.antherPoly, true));
+            if (fl.species !== "peony") {
               corePaths.push(`M ${fmt(sg.suture[0].x)} ${fmt(sg.suture[0].y)} L ${fmt(sg.suture[1].x)} ${fmt(sg.suture[1].y)}`);
             }
           });
@@ -3555,7 +4605,7 @@
             });
             if (f.stamens) {
               f.stamens.forEach(st => {
-                striationPaths.push(`M ${fmt(st.base.x)} ${fmt(st.base.y)} L ${fmt(st.tip.x)} ${fmt(st.tip.y)}`);
+                corePaths.push(`M ${fmt(st.base.x)} ${fmt(st.base.y)} L ${fmt(st.tip.x)} ${fmt(st.tip.y)}`);
                 corePaths.push(circlePath(st.tip.x, st.tip.y, 0.28));
               });
             }
@@ -3800,6 +4850,14 @@
       radiographHalftone: "none",
       xrayDensity: 55,
       xrayBlueprint: false,
+      engravingZoom: "macro",
+      engravingStyle: "directional",
+      engravingDensity: 68,
+      engravingContrast: 65,
+      engravingZoomScale: 100,
+      engravingPanX: 0,
+      engravingPanY: 0,
+      engravingHLR: true,
       penLayers: 4,
       halftoneStyle: "uv_contour",
       halftoneDensity: 65,
@@ -4032,6 +5090,7 @@
 
       let bg = "#FFFFFF";
       if (state.mode === "white_black") bg = "#111216";
+      else if (state.mode === "engraving") bg = "#F6F2E9";
       else if (state.mode === "xray" || isRadiographHalftone) bg = state.xrayBlueprint ? "#0a0d12" : "#efeee9";
       else if (state.mode === "laser_wood" && state.woodPreview3D) bg = "#f3efe6";
 
@@ -4191,8 +5250,9 @@
       bindSelect("cameraView", "cameraView");
       bindSelect("photoBackdrop", "photoBackdrop");
       bindSelect("colorPalette", "colorPalette");
-      bindSelect("halftoneStyle", "halftoneStyle");
       bindSelect("xrayStyle", "xrayStyle");
+      bindSelect("engravingZoom", "engravingZoom");
+      bindSelect("engravingStyle", "engravingStyle");
       bindSelect("woodFrame", "woodFrame");
 
       const updateExportBtnLabel = () => {
@@ -4201,7 +5261,7 @@
         if (isRaster) {
           expBtn.textContent = "Export Dither PNG";
           expBtn.classList.remove("hidden");
-        } else if (state.mode === "halftone" || state.mode === "xray" || state.mode === "xray_dither") {
+        } else if (state.mode === "xray" || state.mode === "xray_dither" || state.mode === "engraving") {
           expBtn.textContent = "Export Layers";
           expBtn.classList.remove("hidden");
         } else {
@@ -4227,16 +5287,33 @@
       bindRange("photoStrength", "photoStrength", "valPhotoStrength", "%");
       bindRange("gravitropism", "gravitropism", "valGravitropism", "%");
       bindRange("phyllotaxis", "phyllotaxis", "valPhyllotaxis", "°");
-      bindRange("penLayers", "penLayers", "valPenLayers");
-      bindRange("halftoneDensity", "halftoneDensity", "valHalftoneDensity", "%");
       bindRange("xrayDensity", "xrayDensity", "valXrayDensity", "%");
+      bindRange("engravingDensity", "engravingDensity", "valEngravingDensity", "%");
+      bindRange("engravingContrast", "engravingContrast", "valEngravingContrast", "%");
+      bindRange("engravingZoomScale", "engravingZoomScale", "valEngravingZoomScale", "%");
+      bindRange("engravingPanX", "engravingPanX", "valEngravingPanX", "%");
+      bindRange("engravingPanY", "engravingPanY", "valEngravingPanY", "%");
       bindRange("woodLayers", "woodLayers", "valWoodLayers");
       bindRange("woodOffset", "woodOffset", "valWoodOffset");
       bindRange("bridgeWidth", "bridgeWidth", "valBridgeWidth");
       bindRange("strokeWidth", "strokeWidth", "valStrokeWidth");
 
+      document.getElementById("btnResetEngravingPan").addEventListener("click", () => {
+        state.engravingZoomScale = 100;
+        state.engravingPanX = 0;
+        state.engravingPanY = 0;
+        document.getElementById("engravingZoomScale").value = "100";
+        document.getElementById("valEngravingZoomScale").textContent = "100%";
+        document.getElementById("engravingPanX").value = "0";
+        document.getElementById("valEngravingPanX").textContent = "0%";
+        document.getElementById("engravingPanY").value = "0";
+        document.getElementById("valEngravingPanY").textContent = "0%";
+        renderAll();
+      });
+
       bindCheck("showVeins", "showVeins");
       bindCheck("xrayBlueprint", "xrayBlueprint");
+      bindCheck("engravingHLR", "engravingHLR");
       bindCheck("woodPreview3D", "woodPreview3D");
       bindCheck("regMarks", "regMarks");
 
@@ -4256,7 +5333,7 @@
           document.getElementById("panelPhotoOpts").classList.toggle("hidden", state.mode !== "photorealistic");
           document.getElementById("panelLineOpts").classList.toggle("hidden", !["xray", "xray_dither", "white_black"].includes(state.mode));
           document.getElementById("rowRadiographHalftone").classList.toggle("hidden", state.mode !== "xray_dither");
-          document.getElementById("panelHalftoneOpts").classList.toggle("hidden", state.mode !== "halftone");
+          document.getElementById("panelEngravingOpts").classList.toggle("hidden", state.mode !== "engraving");
           document.getElementById("panelWoodOpts").classList.toggle("hidden", state.mode !== "laser_wood");
 
           updateExportBtnLabel();
@@ -4291,9 +5368,33 @@
       });
 
       const stage = document.getElementById("canvasStage");
-      let dragging = false, sx = 0, sy = 0, panRaf = 0;
-      stage.addEventListener("mousedown", e => { e.preventDefault(); dragging = true; sx = e.clientX - state.panX; sy = e.clientY - state.panY; });
+      let dragging = false, macroPanning = false, sx = 0, sy = 0, startPanX = 0, startPanY = 0, panRaf = 0;
+      stage.addEventListener("mousedown", e => {
+        e.preventDefault();
+        if (state.mode === "engraving" && e.shiftKey) {
+          macroPanning = true;
+          sx = e.clientX; sy = e.clientY;
+          startPanX = state.engravingPanX; startPanY = state.engravingPanY;
+        } else {
+          dragging = true;
+          sx = e.clientX - state.panX; sy = e.clientY - state.panY;
+        }
+      });
       window.addEventListener("mousemove", e => {
+        if (macroPanning) {
+          const rect = stage.getBoundingClientRect();
+          const scale = Math.max(250, Math.min(rect.width, rect.height) * 0.65);
+          state.engravingPanX = Math.round(clamp(startPanX + ((e.clientX - sx) / scale) * 100, -100, 100));
+          state.engravingPanY = Math.round(clamp(startPanY + ((e.clientY - sy) / scale) * 100, -100, 100));
+          document.getElementById("engravingPanX").value = String(state.engravingPanX);
+          document.getElementById("valEngravingPanX").textContent = state.engravingPanX + "%";
+          document.getElementById("engravingPanY").value = String(state.engravingPanY);
+          document.getElementById("valEngravingPanY").textContent = state.engravingPanY + "%";
+          if (!panRaf) {
+            panRaf = requestAnimationFrame(() => { panRaf = 0; renderAll(); });
+          }
+          return;
+        }
         if (!dragging) return;
         state.panX = e.clientX - sx;
         state.panY = e.clientY - sy;
@@ -4301,7 +5402,7 @@
           panRaf = requestAnimationFrame(() => { panRaf = 0; applyTransform(); });
         }
       });
-      window.addEventListener("mouseup", () => { dragging = false; });
+      window.addEventListener("mouseup", () => { dragging = false; macroPanning = false; });
       stage.addEventListener("wheel", e => {
         e.preventDefault();
         state.zoom = clamp(state.zoom * (e.deltaY < 0 ? 1.1 : 0.9), 0.2, 5.0);
