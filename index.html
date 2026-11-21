@@ -454,6 +454,13 @@
             </label>
             <input type="range" id="plantSize" min="50" max="140" value="100" />
           </div>
+          <div class="control-row">
+            <label class="control-label">
+              <span>Bloom Proximity (Tightness)</span>
+              <span class="control-val" id="valBloomProximity">55%</span>
+            </label>
+            <input type="range" id="bloomProximity" min="0" max="100" value="55" />
+          </div>
 
           <div class="grid-2">
             <div class="control-row">
@@ -560,6 +567,17 @@
           </div>
 
           <div id="panelLineOpts" class="hidden" style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
+            <div id="rowRadiographHalftone" class="control-row hidden">
+              <label class="control-label">Radiograph Halftone (Pen Plot)</label>
+              <select id="radiographHalftone">
+                <option value="none">Smooth Continuous Tone (Dither PNG)</option>
+                <option value="lines">Variable-Amplitude Wave Lines</option>
+                <option value="dots">AM Halftone Dots (45° Screen)</option>
+                <option value="crosshatch">Multi-Tone Cross-Hatch (3 Layers)</option>
+                <option value="stipple">Weighted Radiograph Stipple</option>
+                <option value="concentric">Concentric Ripple Halftone</option>
+              </select>
+            </div>
             <div class="control-row">
               <label class="control-label">X-Ray Shading Style</label>
               <select id="xrayStyle">
@@ -1421,15 +1439,27 @@
         flowerTargets.push({ x: fx, y: fy, scale: fScale * scale, isFocal: fScale > 1.0 });
       }
 
-      // Multi-pass circle-packing relaxation with airy florist spacing so filler pockets open between blooms
+      // Multi-pass circle-packing relaxation controlled by Bloom Proximity (0% = airy/open, 100% = tight/compact)
+      const prox = clamp((params.bloomProximity !== undefined ? params.bloomProximity : 55) / 100, 0, 1);
       if (flowerTargets.length > 1) {
+        // Pull initial bloom targets toward their arrangement centroid based on proximity
+        const centX = flowerTargets.reduce((s, ft) => s + ft.x, 0) / flowerTargets.length;
+        const centY = flowerTargets.reduce((s, ft) => s + ft.y, 0) / flowerTargets.length;
+        const spreadMul = lerp(1.18, 0.56, prox);
+        flowerTargets.forEach(ft => {
+          ft.x = clamp(centX + (ft.x - centX) * spreadMul, 26, W - 26);
+          ft.y = clamp(centY + (ft.y - centY) * spreadMul, 26, H - 52);
+        });
+
+        const distMul = lerp(1.42, 0.88, prox);
+        const shrinkThresh = lerp(1.14, 0.78, prox);
         for (let iter = 0; iter < 28; iter++) {
           let anyOverlap = false;
           for (let i = 0; i < flowerTargets.length; i++) {
             for (let j = i + 1; j < flowerTargets.length; j++) {
               const a = flowerTargets[i], b = flowerTargets[j];
               const rA = 23.0 * a.scale, rB = 23.0 * b.scale;
-              const minDist = (rA + rB) * 1.26;
+              const minDist = (rA + rB) * distMul;
               let dx = b.x - a.x, dy = b.y - a.y;
               let d = Math.hypot(dx, dy);
               if (d < minDist) {
@@ -1442,11 +1472,19 @@
                 const ux = dx / d, uy = dy / d;
                 a.x -= ux * push; a.y -= uy * push;
                 b.x += ux * push; b.y += uy * push;
-                if (iter >= 16 && d < (rA + rB) * 1.04) {
+                if (iter >= 16 && d < (rA + rB) * shrinkThresh) {
                   a.scale *= 0.985;
                   b.scale *= 0.985;
                 }
               }
+            }
+          }
+          // Gentle gravity pull toward centroid at higher proximity so flowers stay compact without white gaps
+          if (prox > 0.35 && iter < 18) {
+            const grav = (prox - 0.35) * 0.045;
+            for (const ft of flowerTargets) {
+              ft.x = lerp(ft.x, centX, grav);
+              ft.y = lerp(ft.y, centY, grav);
             }
           }
           for (const ft of flowerTargets) {
@@ -1460,7 +1498,8 @@
 
       const stemRecords = [];
       flowerTargets.forEach((ft, idx) => {
-        const ox = params.arrangement === "specimen" ? ft.x : params.arrangement === "meadow" ? ft.x + (rng() - 0.5) * 14 : baseOriginX + (rng() - 0.5) * 6 * scale;
+        const sideBias = clamp((ft.x - baseOriginX) * 0.14, -9 * scale, 9 * scale);
+        const ox = params.arrangement === "specimen" ? ft.x : params.arrangement === "meadow" ? ft.x + (rng() - 0.5) * 14 : baseOriginX + sideBias + (rng() - 0.5) * 3 * scale;
         const oy = params.arrangement === "specimen" ? Math.min(H - 18, ft.y + 54 * scale) : baseOriginY;
         const stem = growStem(ox, oy, ft.x, ft.y, 2.3, 22);
         stemRecords.push(stem);
@@ -1495,6 +1534,24 @@
       const isInsideFlower = (x, y, pad = 0) => flowerZones.some(z => Math.hypot(x - z.cx, y - z.cy) < z.r + pad);
       const hitsZone = (x, y, r = 0, ignoreKind = null) =>
         occupiedZones.some(z => z.kind !== ignoreKind && Math.hypot(x - z.cx, y - z.cy) < z.r + r);
+      const pointToSegDist = (px, py, ax, ay, bx, by) => {
+        const dx = bx - ax, dy = by - ay;
+        const lenSq = dx * dx + dy * dy;
+        if (lenSq < 1e-6) return Math.hypot(px - ax, py - ay);
+        const t = clamp(((px - ax) * dx + (py - ay) * dy) / lenSq, 0, 1);
+        return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+      };
+      const hitsStem = (x, y, r, skipPtsSet = null) => {
+        for (const st of stems) {
+          if (skipPtsSet && skipPtsSet.has(st.pts)) continue;
+          const pts = st.pts;
+          const pad = r + (st.thickness || 0.8) * 0.65;
+          for (let i = 0; i < pts.length - 1; i++) {
+            if (pointToSegDist(x, y, pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y) < pad) return true;
+          }
+        }
+        return false;
+      };
       const pushOutsideZones = (x, y, pad = 0, zones = flowerZones) => {
         let px = x, py = y;
         for (let pass = 0; pass < 4; pass++) {
@@ -1511,22 +1568,69 @@
         }
         return { x: clamp(px, 14, W - 14), y: clamp(py, 14, H - 22) };
       };
-      const smoothDeflectStem = (pts) => {
-        for (let i = 2; i < pts.length - 1; i++) {
-          if (isInsideFlower(pts[i].x, pts[i].y, 1.5 * scale)) {
-            const dp = pushOutsideZones(pts[i].x, pts[i].y, 1.5 * scale, flowerZones);
-            pts[i].x = lerp(pts[i].x, dp.x, 0.85);
-            pts[i].y = lerp(pts[i].y, dp.y, 0.85);
+      const smoothDeflectStem = (pts, avoidFoliage = false, ownFlowerIdx = -1) => {
+        const otherFlowers = ownFlowerIdx >= 0
+          ? flowerZones.filter((_, i) => i !== ownFlowerIdx)
+          : flowerZones;
+        const deflectZones = avoidFoliage
+          ? otherFlowers.concat(occupiedZones.filter(z => z.kind === "bud" || z.kind === "leaf"))
+          : otherFlowers;
+        if (deflectZones.length === 0 || pts.length < 4) return;
+
+        const n = pts.length;
+        const sigma = Math.max(2.6, n * 0.24);
+
+        // Apply wide, smooth Gaussian arch deflections so stems curve fluidly around flowers with zero elbows/kinks
+        for (let iter = 0; iter < 3; iter++) {
+          for (const z of deflectZones) {
+            const pad = z.kind === "flower" ? 3.0 * scale : 1.6 * scale;
+            const minR = z.r + pad;
+            let iBest = -1, dBest = minR;
+            for (let i = 1; i < n - 1; i++) {
+              const d = Math.hypot(pts[i].x - z.cx, pts[i].y - z.cy);
+              if (d < dBest) { dBest = d; iBest = i; }
+            }
+            if (iBest < 0) continue;
+
+            // Choose one consistent side of the obstructing circle for the whole stem
+            const pA = pts[Math.max(0, iBest - 2)];
+            const pB = pts[Math.min(n - 1, iBest + 2)];
+            const tdx = pB.x - pA.x, tdy = pB.y - pA.y;
+            const tLen = Math.hypot(tdx, tdy) || 1;
+            let nx = -tdy / tLen, ny = tdx / tLen;
+            // Orient normal away from the circle center (using cross product / dot with vector from z to stem)
+            const vx = pts[iBest].x - z.cx, vy = pts[iBest].y - z.cy;
+            const dot = vx * nx + vy * ny;
+            if (dot < 0 || (Math.abs(dot) < 0.01 && (pts[iBest].x < bouquetCX ? nx > 0 : nx < 0))) {
+              nx = -nx; ny = -ny;
+            }
+
+            const pushMag = (minR - dBest) + 1.2 * scale;
+            for (let i = 1; i < n - 1; i++) {
+              const t = i / (n - 1);
+              const env = Math.sin(t * Math.PI); // smoothly anchors both endpoints
+              const gauss = Math.exp(-Math.pow((i - iBest) / sigma, 2));
+              const shift = pushMag * gauss * Math.min(1, env * 1.45);
+              pts[i].x = clamp(pts[i].x + nx * shift, 12, W - 12);
+              pts[i].y = clamp(pts[i].y + ny * shift, 12, H - 14);
+            }
           }
-        }
-        // 2-pass Laplacian smoothing on interior points to eliminate any sharp kinks
-        for (let pass = 0; pass < 2; pass++) {
-          for (let i = 1; i < pts.length - 1; i++) {
-            pts[i].x = pts[i - 1].x * 0.22 + pts[i].x * 0.56 + pts[i + 1].x * 0.22;
-            pts[i].y = pts[i - 1].y * 0.22 + pts[i].y * 0.56 + pts[i + 1].y * 0.22;
+          // Gentle smoothing pass to maintain continuous organic curvature
+          for (let pass = 0; pass < 2; pass++) {
+            for (let i = 1; i < n - 1; i++) {
+              pts[i].x = pts[i - 1].x * 0.22 + pts[i].x * 0.56 + pts[i + 1].x * 0.22;
+              pts[i].y = pts[i - 1].y * 0.22 + pts[i].y * 0.56 + pts[i + 1].y * 0.22;
+            }
           }
         }
       };
+
+      // Route every primary flower stem cleanly around all other flowers so no stem runs behind a lower bloom
+      stemRecords.forEach((sr, idx) => {
+        smoothDeflectStem(sr.pts, false, idx);
+        const n = sr.pts.length;
+        sr.endAngle = Math.atan2(sr.pts[n - 1].y - sr.pts[n - 2].y, sr.pts[n - 1].x - sr.pts[n - 2].x);
+      });
 
       // Buds: arranged in a clean, outward-arching upper halo avoiding flowers and each other
       for (let b = 0; b < params.numBuds; b++) {
@@ -1577,13 +1681,22 @@
         });
       }
 
-      // Compound Pinnate Leaves (or simple lanceolate for Tulip/Lily): cohesive outward-flowing collar with collision avoidance
+      // Compound Pinnate Leaves (or simple lanceolate for Tulip/Lily): cohesive outward-flowing collar avoiding flowers, buds, stems & other leaves
+      const registerLeafZones = (leaf, widthEst) => {
+        const n = leaf.midrib.length;
+        const r = Math.max(2.2 * scale, widthEst * 0.48);
+        [0.36, 0.72].forEach(f => {
+          const mp = leaf.midrib[clamp(Math.floor(f * (n - 1)), 0, n - 1)];
+          occupiedZones.push({ cx: mp.x, cy: mp.y, r, kind: "leaf" });
+        });
+      };
       const isCompound = !["tulip", "lily"].includes(params.species);
       for (let l = 0; l < params.numLeaves; l++) {
         const parent = stemRecords[l % stemRecords.length];
         const frac = (l + 0.5) / Math.max(1, params.numLeaves);
         const nodeIdx = Math.floor(lerp(3, 12, frac));
         const node = parent.pts[clamp(nodeIdx, 1, parent.pts.length - 2)];
+        const skipParent = new Set([parent.pts]);
 
         // Natural outward radial flow away from bouquet center
         const distFromAxis = node.x - bouquetCX;
@@ -1592,8 +1705,8 @@
           ? lerp(-0.62, 0.28, frac)           // sweeps gracefully up-right to gently arching right
           : Math.PI - lerp(-0.62, 0.28, frac); // mirrored sweep on left flank
 
-        const clusterScale = lerp(0.66, 1.32, rng());
-        const aspectRatio = lerp(0.42, 0.68, rng());
+        const clusterScale = lerp(0.66, 1.28, rng());
+        const aspectRatio = lerp(0.42, 0.66, rng());
         const taperExp = lerp(0.46, 0.70, rng());
         const tipTaper = lerp(0.08, 0.26, rng());
 
@@ -1601,30 +1714,37 @@
           const roll = rng();
           const leafletCount = roll < 0.18 ? 1 : roll < 0.64 ? 3 : 5;
           const petioleLen = (leafletCount === 5 ? lerp(14, 21, rng()) : lerp(9, 16, rng())) * scale * clusterScale;
-          const termLen = lerp(12, 20, rng()) * scale * clusterScale;
+          const termLen = lerp(12, 19, rng()) * scale * clusterScale;
+          const termW = termLen * aspectRatio;
 
-          // Pick the cleanest outward angle that avoids flowers, buds, and existing leaves
+          // Pick the cleanest outward angle that avoids flowers, buds, stems, and existing leaves
           let chosenAng = null;
-          for (const dAng of [0, 0.26, -0.26, 0.52, -0.52, 0.80]) {
+          for (const dAng of [0, 0.24, -0.24, 0.48, -0.48, 0.76, -0.76]) {
             const tryAng = baseOutAng + outwardSign * dAng;
-            const tx = node.x + Math.cos(tryAng) * (petioleLen + termLen * 0.55);
-            const ty = node.y + Math.sin(tryAng) * (petioleLen + termLen * 0.55);
-            if (tx < 12 || tx > W - 12 || ty < 14 || ty > H - 14) continue;
-            if (!hitsZone(tx, ty, termLen * 0.36)) {
+            const tx1 = node.x + Math.cos(tryAng) * (petioleLen + termLen * 0.38);
+            const ty1 = node.y + Math.sin(tryAng) * (petioleLen + termLen * 0.38);
+            const tx2 = node.x + Math.cos(tryAng) * (petioleLen + termLen * 0.75);
+            const ty2 = node.y + Math.sin(tryAng) * (petioleLen + termLen * 0.75);
+            if (tx2 < 12 || tx2 > W - 12 || ty2 < 14 || ty2 > H - 14) continue;
+            const checkR = termW * 0.46;
+            if (!hitsZone(tx1, ty1, checkR) && !hitsZone(tx2, ty2, checkR) &&
+                !hitsStem(tx1, ty1, checkR * 0.85, skipParent) && !hitsStem(tx2, ty2, checkR * 0.85, skipParent)) {
               chosenAng = tryAng;
               break;
             }
           }
           if (chosenAng === null) continue; // skip overcrowded cluster cleanly
 
-          const petioleBend = outwardSign * lerp(1.2, 3.2, rng()) * scale;
+          const petioleBend = outwardSign * lerp(1.2, 3.0, rng()) * scale;
           const pMidX = node.x + Math.cos(chosenAng) * petioleLen * 0.5 - Math.sin(chosenAng) * petioleBend;
           const pMidY = node.y + Math.sin(chosenAng) * petioleLen * 0.5 + Math.cos(chosenAng) * petioleBend;
           const px1 = node.x + Math.cos(chosenAng) * petioleLen;
           const py1 = node.y + Math.sin(chosenAng) * petioleLen;
-          stems.push({ pts: [node, { x: pMidX, y: pMidY }, { x: px1, y: py1 }], thickness: lerp(0.7, 1.0, clusterScale - 0.5) * scale });
+          const petiolePts = [node, { x: pMidX, y: pMidY }, { x: px1, y: py1 }];
+          stems.push({ pts: petiolePts, thickness: lerp(0.7, 1.0, clusterScale - 0.5) * scale });
+          skipParent.add(petiolePts);
 
-          const termLeaf = buildLeaflet(px1, py1, chosenAng + outwardSign * 0.08, termLen, termLen * aspectRatio, true, {
+          const termLeaf = buildLeaflet(px1, py1, chosenAng + outwardSign * 0.08, termLen, termW, true, {
             bend: outwardSign * lerp(0.04, 0.11, rng()),
             asym: (rng() - 0.5) * 0.14,
             taperExp,
@@ -1632,54 +1752,62 @@
             serrationAmp: lerp(0.035, 0.075, rng())
           });
           leaves.push(termLeaf);
-          const tMid = termLeaf.midrib[Math.floor(termLeaf.midrib.length * 0.5)];
-          occupiedZones.push({ cx: tMid.x, cy: tMid.y, r: termLen * 0.34, kind: "leaf" });
+          registerLeafZones(termLeaf, termW);
 
           if (leafletCount >= 3) {
             const pairs = leafletCount === 5 ? [0.42, 0.72] : [0.56];
             pairs.forEach((pt, pIdx) => {
               const bx = lerp(node.x, px1, pt) - Math.sin(chosenAng) * petioleBend * Math.sin(pt * Math.PI);
               const by = lerp(node.y, py1, pt) + Math.cos(chosenAng) * petioleBend * Math.sin(pt * Math.PI);
-              const sizeMul = pIdx === 0 && leafletCount === 5 ? lerp(0.52, 0.66, rng()) : lerp(0.64, 0.82, rng());
+              const sizeMul = pIdx === 0 && leafletCount === 5 ? lerp(0.52, 0.65, rng()) : lerp(0.64, 0.80, rng());
               [-1, 1].forEach(s => {
-                const lLen = termLen * sizeMul * lerp(0.9, 1.1, rng());
-                const lAng = chosenAng + s * lerp(0.72, 1.02, rng());
-                const lx = bx + Math.cos(lAng) * lLen * 0.52;
-                const ly = by + Math.sin(lAng) * lLen * 0.52;
-                if (isInsideFlower(lx, ly, lLen * 0.32) || hitsZone(lx, ly, lLen * 0.26, "leaf")) return;
-                const latLeaf = buildLeaflet(bx, by, lAng, lLen, lLen * aspectRatio * lerp(0.85, 1.12, rng()), true, {
+                const lLen = termLen * sizeMul * lerp(0.9, 1.08, rng());
+                const lW = lLen * aspectRatio * lerp(0.85, 1.10, rng());
+                const lAng = chosenAng + s * lerp(0.74, 1.04, rng());
+                const lx1 = bx + Math.cos(lAng) * lLen * 0.42;
+                const ly1 = by + Math.sin(lAng) * lLen * 0.42;
+                const lx2 = bx + Math.cos(lAng) * lLen * 0.76;
+                const ly2 = by + Math.sin(lAng) * lLen * 0.76;
+                const rChk = lW * 0.45;
+                if (hitsZone(lx1, ly1, rChk) || hitsZone(lx2, ly2, rChk) ||
+                    hitsStem(lx1, ly1, rChk * 0.8, skipParent) || hitsStem(lx2, ly2, rChk * 0.8, skipParent)) return;
+                const latLeaf = buildLeaflet(bx, by, lAng, lLen, lW, true, {
                   bend: s * lerp(0.03, 0.09, rng()),
                   asym: s * lerp(-0.10, 0.12, rng()),
                   taperExp: clamp(taperExp + (rng() - 0.5) * 0.08, 0.42, 0.74),
                   tipTaper
                 });
                 leaves.push(latLeaf);
-                occupiedZones.push({ cx: lx, cy: ly, r: lLen * 0.28, kind: "leaf" });
+                registerLeafZones(latLeaf, lW);
               });
             });
           }
         } else {
-          const lLen = lerp(18, 42, rng()) * scale * lerp(0.78, 1.22, rng());
+          const lLen = lerp(18, 40, rng()) * scale * lerp(0.78, 1.20, rng());
+          const lW = lLen * lerp(0.18, 0.30, rng());
           let chosenAng = null;
-          for (const dAng of [0, 0.24, -0.24, 0.48]) {
+          for (const dAng of [0, 0.24, -0.24, 0.48, -0.48]) {
             const tryAng = baseOutAng + outwardSign * dAng;
-            const mx = node.x + Math.cos(tryAng) * lLen * 0.55;
-            const my = node.y + Math.sin(tryAng) * lLen * 0.55;
-            if (!isInsideFlower(mx, my, lLen * 0.28) && !hitsZone(mx, my, lLen * 0.22)) {
+            const mx1 = node.x + Math.cos(tryAng) * lLen * 0.42;
+            const my1 = node.y + Math.sin(tryAng) * lLen * 0.42;
+            const mx2 = node.x + Math.cos(tryAng) * lLen * 0.78;
+            const my2 = node.y + Math.sin(tryAng) * lLen * 0.78;
+            const rChk = lW * 0.45;
+            if (!hitsZone(mx1, my1, rChk) && !hitsZone(mx2, my2, rChk) &&
+                !hitsStem(mx1, my1, rChk * 0.8, skipParent) && !hitsStem(mx2, my2, rChk * 0.8, skipParent)) {
               chosenAng = tryAng;
               break;
             }
           }
           if (chosenAng === null) continue;
-          const blade = buildLeaflet(node.x, node.y, chosenAng, lLen, lLen * lerp(0.18, 0.32, rng()), false, {
+          const blade = buildLeaflet(node.x, node.y, chosenAng, lLen, lW, false, {
             bend: outwardSign * lerp(0.05, 0.14, rng()),
             asym: (rng() - 0.5) * 0.12,
             taperExp: lerp(0.48, 0.68, rng()),
             tipTaper: lerp(0.12, 0.26, rng())
           });
           leaves.push(blade);
-          const bMid = blade.midrib[Math.floor(blade.midrib.length * 0.55)];
-          occupiedZones.push({ cx: bMid.x, cy: bMid.y, r: lLen * 0.24, kind: "leaf" });
+          registerLeafZones(blade, lW);
         }
       }
 
@@ -1739,7 +1867,7 @@
             const sideT = perSide === 1 ? 0.5 : Math.floor(sideIdx / 2) / Math.max(1, perSide - 1);
             const elevAng = lerp(0.36 * Math.PI, -0.14 * Math.PI, sideT) + (rng() - 0.5) * 0.14;
             const fanAng = side > 0 ? elevAng : (Math.PI - elevAng);
-            const reach = bouquetRadius * lerp(0.76, 1.08, rng());
+            const reach = bouquetRadius * lerp(0.76, 1.06, rng()) * lerp(1.10, 0.84, prox);
             const rawFx = clamp(bouquetCX + Math.cos(fanAng) * reach * 1.12, 16, W - 16);
             const rawFy = clamp(bouquetCY + Math.sin(fanAng) * reach * 0.78 + 16 * scale, bouquetCY - 14 * scale, H - 24);
             const pushed = pushOutsideZones(rawFx, rawFy, 6 * scale, occupiedZones);
@@ -1762,7 +1890,8 @@
           const sprigZoneMark = occupiedZones.length;
 
           const fStem = growStem(bestNode.x, bestNode.y, fx, fy, 0.78, 12);
-          smoothDeflectStem(fStem.pts);
+          smoothDeflectStem(fStem.pts, true);
+          const skipSprig = new Set([fStem.pts]);
           const sprigAng = Math.atan2(
             fStem.pts[fStem.pts.length - 1].y - fStem.pts[fStem.pts.length - 2].y,
             fStem.pts[fStem.pts.length - 1].x - fStem.pts[fStem.pts.length - 2].x
@@ -1776,11 +1905,8 @@
               if (depth === 0) {
                 const isBud = rng() < 0.28;
                 const r = lerp(1.9, 3.0, rng()) * scale * sprigScale;
-                const blocked = occupiedZones.some(z =>
-                  z.kind !== "sprig" && z.kind !== "leaf" && Math.hypot(x - z.cx, y - z.cy) < z.r + r * 0.80
-                );
-                if (blocked) return false;
-                occupiedZones.push({ cx: x, cy: y, r: r * 1.18, kind: "filler" });
+                if (hitsZone(x, y, r * 0.90, "sprig") || hitsStem(x, y, r * 0.75, skipSprig)) return false;
+                occupiedZones.push({ cx: x, cy: y, r: r * 1.25, kind: "filler" });
                 if (isBud) {
                   fillers.push({ type: "gypso_bud", cx: x, cy: y, r: r * 0.65, ang });
                 } else {
@@ -1833,11 +1959,14 @@
                 const forkStemMark = stems.length;
                 const mx = lerp(x, nx, 0.5) + Math.sin(forkAng) * (da >= 0 ? 1.1 : -1.1) * scale;
                 const my = lerp(y, ny, 0.5) - Math.cos(forkAng) * (da >= 0 ? 1.1 : -1.1) * scale;
-                stems.push({ pts: [{ x, y }, { x: mx, y: my }, { x: nx, y: ny }], thickness: 0.44 * scale });
+                const twigPts = [{ x, y }, { x: mx, y: my }, { x: nx, y: ny }];
+                stems.push({ pts: twigPts, thickness: 0.44 * scale });
+                skipSprig.add(twigPts);
                 if (branchCyme(nx, ny, forkAng, depth - 1, len * lerp(0.70, 0.82, rng()))) {
                   anyPlaced = true;
                 } else {
                   stems.length = forkStemMark;
+                  skipSprig.delete(twigPts);
                 }
               });
               return anyPlaced;
@@ -1856,8 +1985,8 @@
                 const ang = segAng + s * lerp(0.95, 1.25, rng());
                 const cx = p.x + Math.cos(ang) * (r * 0.95);
                 const cy = p.y + Math.sin(ang) * (r * 0.95);
-                if (hitsZone(cx, cy, r * 0.85, "filler")) return;
-                occupiedZones.push({ cx, cy, r: r * 0.85, kind: "filler" });
+                if (hitsZone(cx, cy, r * 0.88, "sprig") || hitsStem(cx, cy, r * 0.72, skipSprig)) return;
+                occupiedZones.push({ cx, cy, r: r * 0.95, kind: "filler" });
                 const disc = [];
                 const aspect = lerp(0.78, 1.04, rng());
                 for (let i = 0; i < 16; i++) {
@@ -1888,7 +2017,8 @@
                 const pAng = segAng + s * lerp(0.95, 1.22, rng());
                 const midX = p.x + Math.cos(pAng) * pinLen * 0.55;
                 const midY = p.y + Math.sin(pAng) * pinLen * 0.55;
-                if (hitsZone(midX, midY, pinLen * 0.34, "filler")) return;
+                if (hitsZone(midX, midY, pinLen * 0.32, "sprig") || hitsStem(midX, midY, pinLen * 0.22, skipSprig)) return;
+                occupiedZones.push({ cx: midX, cy: midY, r: pinLen * 0.28, kind: "filler" });
                 leaves.push(buildLeaflet(p.x, p.y, pAng, pinLen, pinLen * lerp(0.26, 0.38, rng()), false, {
                   bend: s * 0.06
                 }));
@@ -1907,7 +2037,8 @@
                 const lx = p.x + nx * s * off;
                 const ly = p.y + ny * s * off;
                 const lr = lerp(1.1, 2.0, 1 - k / (numWhorls * 1.4)) * scale;
-                if (!hitsZone(lx, ly, lr, "filler")) {
+                if (!hitsZone(lx, ly, lr * 0.9, "sprig") && !hitsStem(lx, ly, lr * 0.65, skipSprig)) {
+                  occupiedZones.push({ cx: lx, cy: ly, r: lr * 0.9, kind: "filler" });
                   fillers.push({ type: "lavender", cx: lx, cy: ly, r: lr });
                 }
               });
@@ -1927,7 +2058,7 @@
               const bx = clamp(attach.x + Math.cos(pedAng) * pedLen, 14, W - 14);
               const by = clamp(attach.y + Math.sin(pedAng) * pedLen, 14, H - 16);
               const br = lerp(1.7, 2.9, rng()) * scale;
-              if (isInsideFlower(bx, by, br + 1.2 * scale) || hitsZone(bx, by, br * 0.85, "sprig")) continue;
+              if (hitsZone(bx, by, br * 0.95, "sprig") || hitsStem(bx, by, br * 0.8, skipSprig)) continue;
               occupiedZones.push({ cx: bx, cy: by, r: br * 1.25, kind: "filler" });
 
               // Organic arching 3-point pedicel (never straight geometric spokes)
@@ -1936,7 +2067,9 @@
               const bow = (sideB || (rng() < 0.5 ? 1 : -1)) * lerp(1.4, 2.8, rng()) * scale;
               const mx = (attach.x + bx) * 0.5 - (dy / pLen) * bow;
               const my = (attach.y + by) * 0.5 + (dx / pLen) * bow;
-              stems.push({ pts: [attach, { x: mx, y: my }, { x: bx, y: by }], thickness: 0.56 * scale });
+              const pedPts = [attach, { x: mx, y: my }, { x: bx, y: by }];
+              stems.push({ pts: pedPts, thickness: 0.56 * scale });
+              skipSprig.add(pedPts);
               fillers.push({ type: "berry", cx: bx, cy: by, r: br });
             }
           }
@@ -3650,6 +3783,7 @@
       cameraView: "natural",
       seed: 4217,
       plantSize: 100,
+      bloomProximity: 55,
       numFlowers: 5,
       numBuds: 3,
       numLeaves: 8,
@@ -3663,6 +3797,7 @@
       colorPalette: "natural",
       showVeins: true,
       xrayStyle: "striations",
+      radiographHalftone: "none",
       xrayDensity: 55,
       xrayBlueprint: false,
       penLayers: 4,
@@ -3684,12 +3819,194 @@
       lastLayers: []
     };
 
+    function buildRadiographHalftoneLayers(canvas, design, params) {
+      const ctx = canvas.getContext("2d");
+      const cw = canvas.width, ch = canvas.height;
+      const imgData = ctx.getImageData(0, 0, cw, ch).data;
+      const W = design.W, H = design.H;
+      const isNeg = !!params.xrayBlueprint;
+      const inkHex = isNeg ? "#E2E8F0" : "#181A1E";
+      const sw = params.strokeWidth;
+      const xDens = (params.xrayDensity !== undefined ? params.xrayDensity : 55) / 100;
+      const pitch = lerp(3.4, 1.15, xDens); // mm between halftone cells / scanlines
+      const style = params.radiographHalftone;
+
+      // Sample X-ray optical density in [0..1] from the rendered radiograph (0 = paper, 1 = peak absorption)
+      const sampleDensity = (xmm, ymm) => {
+        if (xmm < 0 || xmm >= W || ymm < 0 || ymm >= H) return 0;
+        const px = clamp(Math.floor((xmm / W) * cw), 0, cw - 1);
+        const py = clamp(Math.floor((ymm / H) * ch), 0, ch - 1);
+        const idx = (py * cw + px) * 4;
+        const lum = (0.299 * imgData[idx] + 0.587 * imgData[idx + 1] + 0.114 * imgData[idx + 2]) / 255;
+        // Paper bg is ~0.953 in positive mode, ~0.045 in negative mode
+        const raw = isNeg ? (lum - 0.05) / 0.90 : (0.95 - lum) / 0.90;
+        return clamp(raw, 0, 1);
+      };
+
+      if (style === "dots") {
+        // Classic 45-degree AM halftone dot screen sized by sqrt(density)
+        const paths = [];
+        const ang = Math.PI / 4;
+        const ca = Math.cos(ang), sa = Math.sin(ang);
+        const diag = Math.hypot(W, H);
+        const cx0 = W * 0.5, cy0 = H * 0.5;
+        for (let v = -diag * 0.6; v <= diag * 0.6; v += pitch) {
+          for (let u = -diag * 0.6; u <= diag * 0.6; u += pitch) {
+            const x = cx0 + u * ca - v * sa;
+            const y = cy0 + u * sa + v * ca;
+            if (x < 4 || x > W - 4 || y < 4 || y > H - 4) continue;
+            const d = sampleDensity(x, y);
+            if (d < 0.045) continue;
+            const r = pitch * 0.46 * Math.sqrt(d);
+            if (r < 0.16) {
+              paths.push(`M ${fmt(x - 0.09)} ${fmt(y)} L ${fmt(x + 0.09)} ${fmt(y)}`);
+            } else {
+              paths.push(circlePath(x, y, r));
+              if (r > sw * 1.9) paths.push(circlePath(x, y, r * 0.52));
+            }
+          }
+        }
+        return [{ id: "Radiograph_Halftone_Dots", color: inkHex, paths, strokeWidth: sw }];
+      }
+
+      if (style === "lines") {
+        // Variable-amplitude sinusoidal scanlines (classic single-stroke pen plotter halftone)
+        const paths = [];
+        const xStep = Math.max(0.32, pitch * 0.24);
+        const freq = (Math.PI * 2) / Math.max(0.9, pitch * 1.15);
+        for (let y = 6; y <= H - 6; y += pitch) {
+          let seg = [];
+          let phase = 0;
+          const flush = () => {
+            if (seg.length >= 2) {
+              let dStr = `M ${fmt(seg[0].x)} ${fmt(seg[0].y)}`;
+              for (let i = 1; i < seg.length; i++) dStr += ` L ${fmt(seg[i].x)} ${fmt(seg[i].y)}`;
+              paths.push(dStr);
+            }
+            seg = [];
+          };
+          for (let x = 6; x <= W - 6; x += xStep) {
+            const d = sampleDensity(x, y);
+            if (d < 0.04) {
+              flush();
+              continue;
+            }
+            phase += xStep * freq * lerp(0.85, 1.35, d);
+            const amp = pitch * 0.44 * Math.pow(d, 0.9);
+            seg.push({ x, y: y + Math.sin(phase) * amp });
+          }
+          flush();
+        }
+        return [{ id: "Radiograph_Wave_Lines", color: inkHex, paths, strokeWidth: sw }];
+      }
+
+      if (style === "crosshatch") {
+        // 3 tonal threshold layers at 30°, -30°, and 90° for rich pen-plotted radiograph shading
+        const passes = [
+          { id: "Radiograph_Hatch_1_Light", ang: 30 * DEG, thresh: 0.09, stepMul: 1.05, color: isNeg ? "#94A3B8" : "#52565E" },
+          { id: "Radiograph_Hatch_2_Mid", ang: -30 * DEG, thresh: 0.26, stepMul: 1.0, color: isNeg ? "#CBD5E1" : "#272A30" },
+          { id: "Radiograph_Hatch_3_Dark", ang: 90 * DEG, thresh: 0.46, stepMul: 0.92, color: isNeg ? "#FFFFFF" : "#000000" }
+        ];
+        const diag = Math.hypot(W, H);
+        const cx0 = W * 0.5, cy0 = H * 0.5;
+        return passes.map(pass => {
+          const paths = [];
+          const ca = Math.cos(pass.ang), sa = Math.sin(pass.ang);
+          const nx = -sa, ny = ca;
+          const lineGap = pitch * pass.stepMul;
+          const sampleStep = Math.max(0.55, pitch * 0.35);
+          for (let off = -diag * 0.55; off <= diag * 0.55; off += lineGap) {
+            let startPt = null, lastPt = null;
+            for (let t = -diag * 0.55; t <= diag * 0.55; t += sampleStep) {
+              const x = cx0 + nx * off + ca * t;
+              const y = cy0 + ny * off + sa * t;
+              if (x < 4 || x > W - 4 || y < 4 || y > H - 4) {
+                if (startPt && lastPt) paths.push(`M ${fmt(startPt.x)} ${fmt(startPt.y)} L ${fmt(lastPt.x)} ${fmt(lastPt.y)}`);
+                startPt = null; lastPt = null;
+                continue;
+              }
+              const d = sampleDensity(x, y);
+              if (d >= pass.thresh) {
+                if (!startPt) startPt = { x, y };
+                lastPt = { x, y };
+              } else if (startPt && lastPt) {
+                if (Math.hypot(lastPt.x - startPt.x, lastPt.y - startPt.y) > 0.35) {
+                  paths.push(`M ${fmt(startPt.x)} ${fmt(startPt.y)} L ${fmt(lastPt.x)} ${fmt(lastPt.y)}`);
+                }
+                startPt = null; lastPt = null;
+              }
+            }
+            if (startPt && lastPt && Math.hypot(lastPt.x - startPt.x, lastPt.y - startPt.y) > 0.35) {
+              paths.push(`M ${fmt(startPt.x)} ${fmt(startPt.y)} L ${fmt(lastPt.x)} ${fmt(lastPt.y)}`);
+            }
+          }
+          return { id: pass.id, color: pass.color, paths, strokeWidth: sw };
+        }).filter(l => l.paths.length > 0);
+      }
+
+      if (style === "stipple") {
+        // Weighted radiograph stipple directly sampled from optical density
+        const paths = [];
+        const step = Math.max(0.45, pitch * 0.44);
+        for (let y = 6; y <= H - 6; y += step) {
+          for (let x = 6; x <= W - 6; x += step) {
+            const jx = x + (hash2D(x, y) - 0.5) * step * 0.85;
+            const jy = y + (hash2D(y + 17.3, x - 9.1) - 0.5) * step * 0.85;
+            const d = sampleDensity(jx, jy);
+            if (d < 0.04) continue;
+            const prob = clamp(Math.pow(d, 0.82) * 0.96, 0, 0.98);
+            if (hash2D(jx * 1.7, jy * 2.3) < prob) {
+              paths.push(`M ${fmt(jx - 0.09)} ${fmt(jy)} L ${fmt(jx + 0.09)} ${fmt(jy)}`);
+            }
+          }
+        }
+        return [{ id: "Radiograph_Weighted_Stipple", color: inkHex, paths, strokeWidth: sw }];
+      }
+
+      // "concentric": Concentric Ripple Halftone centered on the bouquet
+      const paths = [];
+      const bCX = design.flowers.length ? design.flowers.reduce((s, f) => s + f.cx, 0) / design.flowers.length : W * 0.5;
+      const bCY = design.flowers.length ? design.flowers.reduce((s, f) => s + f.cy, 0) / design.flowers.length : H * 0.45;
+      const maxR = Math.hypot(W, H) * 0.65;
+      const arcStep = Math.max(0.5, pitch * 0.35);
+      const waveFreq = (Math.PI * 2) / Math.max(1.0, pitch * 1.3);
+      for (let r = pitch; r <= maxR; r += pitch) {
+        const circum = Math.PI * 2 * r;
+        const steps = Math.max(24, Math.floor(circum / arcStep));
+        let seg = [];
+        let phase = 0;
+        const flush = () => {
+          if (seg.length >= 2) {
+            let dStr = `M ${fmt(seg[0].x)} ${fmt(seg[0].y)}`;
+            for (let i = 1; i < seg.length; i++) dStr += ` L ${fmt(seg[i].x)} ${fmt(seg[i].y)}`;
+            paths.push(dStr);
+          }
+          seg = [];
+        };
+        for (let i = 0; i <= steps; i++) {
+          const a = (i / steps) * Math.PI * 2;
+          const bx = bCX + Math.cos(a) * r;
+          const by = bCY + Math.sin(a) * r;
+          if (bx < 5 || bx > W - 5 || by < 5 || by > H - 5) { flush(); continue; }
+          const d = sampleDensity(bx, by);
+          if (d < 0.045) { flush(); continue; }
+          phase += arcStep * waveFreq;
+          const dr = Math.sin(phase) * pitch * 0.42 * Math.pow(d, 0.9);
+          seg.push({ x: bCX + Math.cos(a) * (r + dr), y: bCY + Math.sin(a) * (r + dr) });
+        }
+        flush();
+      }
+      return [{ id: "Radiograph_Concentric_Ripple", color: inkHex, paths, strokeWidth: sw }];
+    }
+
     function renderAll() {
       const design = generateBotanicalDesign(state);
       const container = document.getElementById("renderContainer");
       container.innerHTML = "";
 
-      if (state.mode === "photorealistic" || state.mode === "xray_dither") {
+      const isRadiographHalftone = state.mode === "xray_dither" && state.radiographHalftone !== "none";
+
+      if (state.mode === "photorealistic" || (state.mode === "xray_dither" && !isRadiographHalftone)) {
         const canvas = state.mode === "xray_dither"
           ? renderXRayRadiographCanvas(design, state)
           : renderPhotorealisticCanvas(design, state);
@@ -3707,13 +4024,15 @@
         return;
       }
 
-      const layers = buildVectorLayers(design, state);
+      const layers = isRadiographHalftone
+        ? buildRadiographHalftoneLayers(renderXRayRadiographCanvas(design, state), design, state)
+        : buildVectorLayers(design, state);
       if (state.regMarks) layers.push(buildRegMarksLayer(state.canvasW, state.canvasH));
       state.lastLayers = layers;
 
       let bg = "#FFFFFF";
       if (state.mode === "white_black") bg = "#111216";
-      else if (state.mode === "xray") bg = state.xrayBlueprint ? "#0a0d12" : "#efeee9";
+      else if (state.mode === "xray" || isRadiographHalftone) bg = state.xrayBlueprint ? "#0a0d12" : "#efeee9";
       else if (state.mode === "laser_wood" && state.woodPreview3D) bg = "#f3efe6";
 
       const is3DWood = state.mode === "laser_wood" && state.woodPreview3D;
@@ -3876,8 +4195,30 @@
       bindSelect("xrayStyle", "xrayStyle");
       bindSelect("woodFrame", "woodFrame");
 
+      const updateExportBtnLabel = () => {
+        const expBtn = document.getElementById("btnExportLayers");
+        const isRaster = state.mode === "photorealistic" || (state.mode === "xray_dither" && state.radiographHalftone === "none");
+        if (isRaster) {
+          expBtn.textContent = "Export Dither PNG";
+          expBtn.classList.remove("hidden");
+        } else if (state.mode === "halftone" || state.mode === "xray" || state.mode === "xray_dither") {
+          expBtn.textContent = "Export Layers";
+          expBtn.classList.remove("hidden");
+        } else {
+          expBtn.classList.add("hidden");
+        }
+      };
+
+      document.getElementById("radiographHalftone").addEventListener("change", e => {
+        state.radiographHalftone = e.target.value;
+        state.hiddenLayers.clear();
+        updateExportBtnLabel();
+        renderAll();
+      });
+
       bindRange("fillerDensity", "fillerDensity", "valFillerDensity", "%");
       bindRange("plantSize", "plantSize", "valPlantSize", "%");
+      bindRange("bloomProximity", "bloomProximity", "valBloomProximity", "%");
       bindRange("numFlowers", "numFlowers", "valNumFlowers");
       bindRange("numBuds", "numBuds", "valNumBuds");
       bindRange("numLeaves", "numLeaves", "valNumLeaves");
@@ -3914,19 +4255,11 @@
 
           document.getElementById("panelPhotoOpts").classList.toggle("hidden", state.mode !== "photorealistic");
           document.getElementById("panelLineOpts").classList.toggle("hidden", !["xray", "xray_dither", "white_black"].includes(state.mode));
+          document.getElementById("rowRadiographHalftone").classList.toggle("hidden", state.mode !== "xray_dither");
           document.getElementById("panelHalftoneOpts").classList.toggle("hidden", state.mode !== "halftone");
           document.getElementById("panelWoodOpts").classList.toggle("hidden", state.mode !== "laser_wood");
 
-          const expBtn = document.getElementById("btnExportLayers");
-          if (state.mode === "xray_dither" || state.mode === "photorealistic") {
-            expBtn.textContent = "Export Dither PNG";
-            expBtn.classList.remove("hidden");
-          } else if (state.mode === "halftone" || state.mode === "xray") {
-            expBtn.textContent = "Export Layers";
-            expBtn.classList.remove("hidden");
-          } else {
-            expBtn.classList.add("hidden");
-          }
+          updateExportBtnLabel();
           renderAll();
         });
       });
@@ -3940,7 +4273,8 @@
         downloadSVG(`floraplot_${state.species}_${state.mode}_${state.seed}.svg`, buildCleanLightBurnSVGString(state.lastLayers));
       });
       document.getElementById("btnExportLayers").addEventListener("click", () => {
-        if (state.mode === "xray_dither" || state.mode === "photorealistic") {
+        const isRaster = state.mode === "photorealistic" || (state.mode === "xray_dither" && state.radiographHalftone === "none");
+        if (isRaster) {
           const canvas = document.querySelector("#renderContainer canvas");
           if (canvas) {
             const a = document.createElement("a");
