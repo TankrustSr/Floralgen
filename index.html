@@ -2111,20 +2111,28 @@
                 if (hitsZone(cx, cy, r * 0.88, "sprig") || hitsStem(cx, cy, r * 0.72, skipSprig)) return;
                 occupiedZones.push({ cx, cy, r: r * 0.95, kind: "filler" });
                 const disc = [];
-                const aspect = lerp(0.78, 1.04, rng());
+                const aspect = lerp(0.84, 1.04, rng());
+                const ca = Math.cos(ang), sa = Math.sin(ang);
+                const px = -sa, py = ca;
                 for (let i = 0; i < 16; i++) {
-                  const a = (i / 16) * Math.PI * 2;
-                  disc.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r * aspect });
+                  // Start at i=0 (stem attachment base) and reach i=8 (outer leaf tip)
+                  const localA = Math.PI + (i / 16) * Math.PI * 2;
+                  const lxLoc = Math.cos(localA) * r;
+                  const lyLoc = Math.sin(localA) * r * aspect;
+                  disc.push({
+                    x: cx + ca * lxLoc + px * lyLoc,
+                    y: cy + sa * lxLoc + py * lyLoc
+                  });
                 }
-                const midTip = { x: cx + Math.cos(ang) * r * 0.8, y: cy + Math.sin(ang) * r * 0.8 * aspect };
-                const px = -Math.sin(ang), py = Math.cos(ang);
+                const midBase = disc[0];
+                const midTip = { x: lerp(cx, disc[8].x, 0.88), y: lerp(cy, disc[8].y, 0.88) };
                 const eucVeins = [
-                  [{ x: lerp(p.x, midTip.x, 0.35), y: lerp(p.y, midTip.y, 0.35) }, { x: cx + px * r * 0.55, y: cy + py * r * 0.55 * aspect }],
-                  [{ x: lerp(p.x, midTip.x, 0.35), y: lerp(p.y, midTip.y, 0.35) }, { x: cx - px * r * 0.55, y: cy - py * r * 0.55 * aspect }],
-                  [{ x: lerp(p.x, midTip.x, 0.65), y: lerp(p.y, midTip.y, 0.65) }, { x: lerp(cx, midTip.x, 0.4) + px * r * 0.4, y: lerp(cy, midTip.y, 0.4) + py * r * 0.4 * aspect }],
-                  [{ x: lerp(p.x, midTip.x, 0.65), y: lerp(p.y, midTip.y, 0.65) }, { x: lerp(cx, midTip.x, 0.4) - px * r * 0.4, y: lerp(cy, midTip.y, 0.4) - py * r * 0.4 * aspect }]
+                  [{ x: lerp(midBase.x, midTip.x, 0.35), y: lerp(midBase.y, midTip.y, 0.35) }, { x: cx + px * r * 0.58 * aspect, y: cy + py * r * 0.58 * aspect }],
+                  [{ x: lerp(midBase.x, midTip.x, 0.35), y: lerp(midBase.y, midTip.y, 0.35) }, { x: cx - px * r * 0.58 * aspect, y: cy - py * r * 0.58 * aspect }],
+                  [{ x: lerp(midBase.x, midTip.x, 0.65), y: lerp(midBase.y, midTip.y, 0.65) }, { x: lerp(cx, midTip.x, 0.4) + px * r * 0.42 * aspect, y: lerp(cy, midTip.y, 0.4) + py * r * 0.42 * aspect }],
+                  [{ x: lerp(midBase.x, midTip.x, 0.65), y: lerp(midBase.y, midTip.y, 0.65) }, { x: lerp(cx, midTip.x, 0.4) - px * r * 0.42 * aspect, y: lerp(cy, midTip.y, 0.4) - py * r * 0.42 * aspect }]
                 ];
-                leaves.push({ poly: disc, midrib: [p, midTip], veins: eucVeins });
+                leaves.push({ poly: disc, midrib: [midBase, { x: cx, y: cy }, midTip], veins: eucVeins });
               });
             }
           } else if (fType === "fern") {
